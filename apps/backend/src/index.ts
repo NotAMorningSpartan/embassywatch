@@ -10,6 +10,7 @@ import authRoutes from "./routes/auth.js";
 import embassyRoutes from "./routes/embassies.js";
 import userRoutes from "./routes/users.js";
 import adminRoutes from "./routes/admin.js";
+import { startScheduler } from "./services/scheduler.js";
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use(errorHandler);
 AppDataSource.initialize()
   .then(() => {
     console.log("Database connected.");
+    startScheduler();
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
