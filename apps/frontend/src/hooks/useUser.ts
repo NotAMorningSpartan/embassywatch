@@ -12,6 +12,19 @@ interface UserProfile {
   updatedAt: string;
 }
 
+export interface WatchlistEmbassy extends Embassy {
+  trend: "improving" | "worsening" | "stable";
+  previousThreatLevel: string | null;
+}
+
+export interface WatchlistChange {
+  embassyId: string;
+  embassyName: string;
+  fromLevel: string;
+  toLevel: string;
+  changedAt: string;
+}
+
 export function useCurrentUser() {
   return useQuery({
     queryKey: ["currentUser"],
@@ -34,11 +47,25 @@ export function useUpdatePreferences() {
   });
 }
 
-export function useWatchlist() {
+export function useWatchlist(params?: { sort?: string; search?: string }) {
   return useQuery({
-    queryKey: ["watchlist"],
+    queryKey: ["watchlist", params],
     queryFn: () =>
-      api.get<Embassy[]>("/api/users/me/watchlist").then((r) => r.data),
+      api
+        .get<WatchlistEmbassy[]>("/api/users/me/watchlist", { params })
+        .then((r) => r.data),
+  });
+}
+
+export function useWatchlistChanges(days: number = 7) {
+  return useQuery({
+    queryKey: ["watchlistChanges", days],
+    queryFn: () =>
+      api
+        .get<WatchlistChange[]>("/api/users/me/watchlist/changes", {
+          params: { days },
+        })
+        .then((r) => r.data),
   });
 }
 
@@ -52,6 +79,7 @@ export function useAddToWatchlist() {
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watchlist"] });
+      queryClient.invalidateQueries({ queryKey: ["watchlistChanges"] });
     },
   });
 }
@@ -62,10 +90,11 @@ export function useRemoveFromWatchlist() {
   return useMutation({
     mutationFn: (embassyId: string) =>
       api
-        .delete<Embassy[]>(`/api/users/me/watchlist/${embassyId}`)
+        .delete(`/api/users/me/watchlist/${embassyId}`)
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watchlist"] });
+      queryClient.invalidateQueries({ queryKey: ["watchlistChanges"] });
     },
   });
 }

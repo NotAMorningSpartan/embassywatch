@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmbassiesPage from "./pages/EmbassiesPage";
 import EmbassyDetailPage from "./pages/EmbassyDetailPage";
+import WatchlistPage from "./pages/WatchlistPage";
 import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
 
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/embassies" element={<EmbassiesPage />} />
             <Route path="/embassies/:id" element={<EmbassyDetailPage />} />
+            <Route path="/watchlist" element={<WatchlistPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
