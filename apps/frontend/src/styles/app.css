@@ -17,6 +17,72 @@
   --banner-height: 28px;
 }
 
+/* ===== Dark Theme ===== */
+[data-theme="dark"] {
+  --ew-primary: #0f2640;
+  --ew-secondary: #4a9ae5;
+  --ew-white: #1e1e30;
+  --ew-gray-lightest: #1a1a2e;
+  --ew-gray-light: #2d2d44;
+  --ew-gray: #9e9eb0;
+  --ew-gray-dark: #b0b0c0;
+  --ew-ink: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-header {
+  background: #0a1929;
+}
+
+[data-theme="dark"] .ew-footer {
+  background: #0a1929;
+}
+
+[data-theme="dark"] .ew-sidebar {
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .ew-placeholder {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ew-login__card {
+  border-top-color: #4a9ae5;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .ew-login__field input {
+  background: #16162a;
+  color: #e0e0e8;
+  border-color: #2d2d44;
+}
+
+[data-theme="dark"] .ew-user-menu__dropdown {
+  background: #1e1e30;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .ew-user-menu__item {
+  color: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-user-menu__item:hover {
+  background: #2d2d44;
+}
+
+[data-theme="dark"] .ew-content h1 {
+  color: #4a9ae5;
+}
+
+[data-theme="dark"] .ew-footer__brand h3,
+[data-theme="dark"] .ew-footer__links-column h4 {
+  color: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-login__card h1 {
+  color: #4a9ae5;
+}
+
 /* ===== Reset / Base ===== */
 *,
 *::before,
@@ -166,6 +232,18 @@ body {
 
 .ew-user-menu__item:hover {
   background: var(--ew-gray-lightest);
+}
+
+.ew-user-menu__theme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ew-user-menu__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 /* ===== Layout Shell ===== */
@@ -459,4 +537,84 @@ body {
   text-align: center;
   color: var(--ew-gray);
   margin-top: 8px;
+}
+
+/* ===== Theme Toggle ===== */
+.ew-theme-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--ew-white);
+  border-radius: 20px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: background 0.15s;
+}
+
+.ew-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ===== Login Validation ===== */
+.ew-login__error {
+  color: var(--ew-error);
+  font-size: 0.8125rem;
+  margin-top: 4px;
+}
+
+.ew-login__field input.ew-login__input--error {
+  border-color: var(--ew-error);
+}
+
+.ew-login__field input.ew-login__input--error:focus {
+  outline-color: var(--ew-error);
+}
+
+.ew-login__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  color: var(--ew-ink);
+}
+
+.ew-login__checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ew-primary);
+}
+
+.ew-login__btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ew-login__spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--ew-white);
+  border-radius: 50%;
+  animation: ew-spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes ew-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ew-login__disclaimer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--ew-gray);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ew-gray-light);
 }

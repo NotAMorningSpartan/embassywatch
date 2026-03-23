@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { usePreferencesStore } from "../stores/usePreferencesStore";
 
 const sidebarItems = [
   { to: "/dashboard", icon: "\u{1F4CA}", label: "Dashboard" },
@@ -22,6 +23,11 @@ export default function USWDSLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const breadcrumbs = buildBreadcrumbs(location.pathname);
+  const { theme, toggleTheme } = usePreferencesStore();
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   return (
     <>
@@ -85,6 +91,33 @@ export default function USWDSLayout() {
             </button>
             {userMenuOpen && (
               <div className="ew-user-menu__dropdown">
+                <button
+                  className="ew-user-menu__item ew-user-menu__theme"
+                  onClick={() => {
+                    toggleTheme();
+                  }}
+                >
+                  {theme === "light" ? (
+                    <svg className="ew-user-menu__icon" viewBox="0 0 20 20" fill="none">
+                      <path d="M17.3 12.3a7.5 7.5 0 0 1-9.6-9.6 7.5 7.5 0 1 0 9.6 9.6Z" fill="#2E75B6" />
+                    </svg>
+                  ) : (
+                    <svg className="ew-user-menu__icon" viewBox="0 0 20 20" fill="none">
+                      <circle cx="10" cy="10" r="4" fill="#E87722" />
+                      <g stroke="#E87722" strokeWidth="1.5" strokeLinecap="round">
+                        <line x1="10" y1="1" x2="10" y2="3.5" />
+                        <line x1="10" y1="16.5" x2="10" y2="19" />
+                        <line x1="1" y1="10" x2="3.5" y2="10" />
+                        <line x1="16.5" y1="10" x2="19" y2="10" />
+                        <line x1="3.6" y1="3.6" x2="5.4" y2="5.4" />
+                        <line x1="14.6" y1="14.6" x2="16.4" y2="16.4" />
+                        <line x1="3.6" y1="16.4" x2="5.4" y2="14.6" />
+                        <line x1="14.6" y1="5.4" x2="16.4" y2="3.6" />
+                      </g>
+                    </svg>
+                  )}
+                  {theme === "light" ? "Dark mode" : "Light mode"}
+                </button>
                 <Link
                   to="/settings"
                   className="ew-user-menu__item"
