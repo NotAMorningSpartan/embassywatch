@@ -1345,3 +1345,363 @@ body {
   border-color: #2d2d44;
   color: #4a9ae5;
 }
+
+/* ===== Admin Panel ===== */
+
+.ew-admin-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--ew-gray-light);
+  padding-bottom: 0;
+}
+
+.ew-admin-tab {
+  padding: 8px 18px;
+  border: none;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ew-gray);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+}
+
+.ew-admin-tab:hover {
+  color: var(--ew-secondary);
+}
+
+.ew-admin-tab--active {
+  color: var(--ew-secondary);
+  border-bottom-color: var(--ew-secondary);
+}
+
+.ew-admin-section {
+  margin-bottom: 24px;
+}
+
+.ew-admin-section h2 {
+  font-size: 1.1rem;
+  margin: 0 0 16px;
+  color: var(--ew-ink);
+}
+
+.ew-admin-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ew-admin-section__header h2 {
+  margin: 0;
+}
+
+.ew-admin-timestamp {
+  font-size: 0.75rem;
+  color: var(--ew-gray);
+  margin-bottom: 12px;
+}
+
+/* Buttons */
+.ew-admin-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 4px;
+  background: var(--ew-white);
+  color: var(--ew-ink);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ew-admin-btn:hover {
+  border-color: var(--ew-secondary);
+  color: var(--ew-secondary);
+}
+
+.ew-admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ew-admin-btn--sm {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  margin-right: 4px;
+}
+
+.ew-admin-btn--primary {
+  background: var(--ew-secondary);
+  color: #fff;
+  border-color: var(--ew-secondary);
+}
+
+.ew-admin-btn--primary:hover {
+  opacity: 0.9;
+  color: #fff;
+}
+
+.ew-admin-btn--danger {
+  color: #d83933;
+  border-color: #d83933;
+}
+
+.ew-admin-btn--success {
+  color: #2e8540;
+  border-color: #2e8540;
+}
+
+/* Health grid */
+.ew-admin-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ew-admin-health-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  background: var(--ew-white);
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 6px;
+}
+
+.ew-admin-health-card__indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.ew-admin-health-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ew-admin-health-card__info strong {
+  font-size: 0.85rem;
+}
+
+.ew-admin-health-card__status {
+  font-size: 0.75rem;
+  color: var(--ew-gray);
+  text-transform: capitalize;
+}
+
+.ew-admin-health-card__msg {
+  font-size: 0.7rem;
+  color: var(--ew-gray);
+}
+
+/* Tables */
+.ew-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background: var(--ew-white);
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ew-admin-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--ew-gray-light);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ew-ink);
+}
+
+.ew-admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ew-gray-light);
+  color: var(--ew-ink);
+}
+
+.ew-admin-table__row {
+  cursor: pointer;
+}
+
+.ew-admin-table__row:hover td {
+  background: var(--ew-gray-lightest);
+}
+
+.ew-admin-table__expanded td {
+  background: var(--ew-gray-lightest);
+}
+
+.ew-admin-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.ew-admin-source-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 4px 0;
+}
+
+.ew-admin-role-select {
+  padding: 3px 8px;
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 3px;
+  font-size: 0.8rem;
+  background: var(--ew-white);
+  color: var(--ew-ink);
+}
+
+/* Create user form */
+.ew-admin-create-form {
+  margin-bottom: 16px;
+  max-width: 500px;
+}
+
+.ew-admin-form-row {
+  margin-bottom: 12px;
+}
+
+.ew-admin-form-row label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--ew-ink);
+}
+
+.ew-admin-form-row input,
+.ew-admin-form-row select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  background: var(--ew-white);
+  color: var(--ew-ink);
+}
+
+.ew-admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.ew-admin-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ew-admin-error {
+  color: #d83933;
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
+
+.ew-admin-test-result {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--ew-gray-lightest);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Pagination */
+.ew-admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 0.8rem;
+  color: var(--ew-gray);
+}
+
+/* Dark mode */
+[data-theme="dark"] .ew-admin-tabs {
+  border-bottom-color: #2d2d44;
+}
+
+[data-theme="dark"] .ew-admin-tab {
+  color: #9e9eb0;
+}
+
+[data-theme="dark"] .ew-admin-tab--active {
+  color: #4a9ae5;
+  border-bottom-color: #4a9ae5;
+}
+
+[data-theme="dark"] .ew-admin-health-card {
+  background: #1a1a2e;
+  border-color: #2d2d44;
+}
+
+[data-theme="dark"] .ew-admin-btn {
+  background: #1a1a2e;
+  border-color: #2d2d44;
+  color: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-admin-btn:hover {
+  border-color: #4a9ae5;
+  color: #4a9ae5;
+}
+
+[data-theme="dark"] .ew-admin-btn--primary {
+  background: #4a9ae5;
+  color: #fff;
+  border-color: #4a9ae5;
+}
+
+[data-theme="dark"] .ew-admin-table {
+  background: #1a1a2e;
+  border-color: #2d2d44;
+}
+
+[data-theme="dark"] .ew-admin-table th {
+  border-bottom-color: #2d2d44;
+}
+
+[data-theme="dark"] .ew-admin-table td {
+  border-bottom-color: #2d2d44;
+}
+
+[data-theme="dark"] .ew-admin-table__row:hover td,
+[data-theme="dark"] .ew-admin-table__expanded td {
+  background: #2d2d44;
+}
+
+[data-theme="dark"] .ew-admin-role-select {
+  background: #16162a;
+  border-color: #2d2d44;
+  color: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-admin-form-row input,
+[data-theme="dark"] .ew-admin-form-row select {
+  background: #16162a;
+  border-color: #2d2d44;
+  color: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-admin-test-result {
+  background: #16162a;
+}

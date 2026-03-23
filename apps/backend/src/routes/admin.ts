@@ -9,6 +9,8 @@ import { authenticate, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { redis } from "../config/redis.js";
+import { RawEvent } from "../entities/RawEvent.js";
+import { getAggregationService } from "../services/scheduler.js";
 
 const router = Router();
 router.use(authenticate, requireRole(UserRole.ADMIN));
@@ -110,7 +112,92 @@ router.get("/system/health", async (_req, res) => {
     health.ai = { status: "down", message: "Not configured" };
   }
 
+  // Data source health
+  const sources = await sourceRepo().find();
+  for (const src of sources) {
+    health[`source_${src.name}`] = {
+      status: src.healthStatus ?? "unknown",
+      message: src.lastFetchedAt
+        ? `Last fetched: ${src.lastFetchedAt.toISOString()}`
+        : "Never fetched",
+    };
+  }
+
   res.json({ ...health, timestamp: new Date().toISOString() });
+});
+
+// GET /api/admin/sources with event counts
+router.get("/sources/detailed", async (_req, res) => {
+  const sources = await sourceRepo().find({ order: { name: "ASC" } });
+  const eventRepo = AppDataSource.getRepository(RawEvent);
+
+  const detailed = await Promise.all(
+    sources.map(async (src) => {
+      const eventCount = await eventRepo.count({
+        where: { dataSourceId: src.id },
+      });
+      return { ...src, eventCount };
+    }),
+  );
+
+  res.json(detailed);
+});
+
+// POST /api/admin/sources/:id/fetch — trigger immediate fetch
+router.post("/sources/:id/fetch", async (req, res) => {
+  const source = await sourceRepo().findOneBy({ id: req.params.id as string });
+  if (!source) {
+    throw new AppError(404, "Data source not found");
+  }
+
+  const service = getAggregationService();
+  const result = await service.runAll();
+  res.json({ message: "Fetch triggered", ...result });
+});
+
+// PATCH /api/admin/users/:id — update user role/status
+const updateUserSchema = z.object({
+  role: z.nativeEnum(UserRole).optional(),
+  displayName: z.string().min(1).optional(),
+});
+
+router.patch("/users/:id", validate(updateUserSchema), async (req, res) => {
+  const user = await userRepo().findOneBy({ id: req.params.id as string });
+  if (!user) {
+    throw new AppError(404, "User not found");
+  }
+
+  if (req.body.role) user.role = req.body.role;
+  if (req.body.displayName) user.displayName = req.body.displayName;
+  await userRepo().save(user);
+
+  const { passwordHash: _, ...result } = user;
+  res.json(result);
+});
+
+// GET /api/admin/activity — recent system activity
+router.get("/activity", async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+
+  const eventRepo = AppDataSource.getRepository(RawEvent);
+  const [events, total] = await eventRepo.findAndCount({
+    relations: ["dataSource"],
+    order: { createdAt: "DESC" },
+    skip: (page - 1) * limit,
+    take: limit,
+  });
+
+  const activity = events.map((e) => ({
+    id: e.id,
+    type: "data_fetch" as const,
+    title: e.title,
+    source: e.dataSource?.name ?? "Unknown",
+    severity: e.severity,
+    timestamp: e.createdAt,
+  }));
+
+  res.json({ data: activity, total, page, limit });
 });
 
 export default router;
