@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embassywatch-ai-config
+  labels:
+    app: embassywatch
+    component: ai-config
+data:
+  AI_ENDPOINT_URL: ""
+  AI_MODEL_NAME: "default"
+  AI_TEMPERATURE: "0.3"
+  AI_MAX_TOKENS: "2048"
+  AI_TIMEOUT: "60"

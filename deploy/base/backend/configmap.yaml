@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: embassywatch-backend-config
+  labels:
+    app: embassywatch
+    component: backend
+data:
+  PORT: "4000"
+  NODE_ENV: "production"
+  DB_HOST: "embassywatch-postgres"
+  DB_PORT: "5432"
+  DB_DATABASE: "embassywatch"
+  DB_USERNAME: "postgres"
+  DB_LOGGING: "false"
+  REDIS_URL: "redis://embassywatch-redis:6379"
+  USE_MOCK_DATA: "true"
+  AGGREGATION_CRON: "*/30 * * * *"
+  ANALYSIS_CRON: "0 */6 * * *"
+  AGGREGATE_ON_STARTUP: "true"
+  AI_ENDPOINT_URL: ""
+  AI_MODEL_NAME: "default"
+  AI_TEMPERATURE: "0.3"
+  AI_MAX_TOKENS: "2048"
+  AI_TIMEOUT: "60"
