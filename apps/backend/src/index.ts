@@ -1,7 +1,9 @@
+import "reflect-metadata";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
+import { AppDataSource } from "./config/database.js";
 
 dotenv.config();
 
@@ -16,6 +18,14 @@ app.get("/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+AppDataSource.initialize()
+  .then(() => {
+    console.log("Database connected.");
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Database connection failed:", err);
+    process.exit(1);
+  });

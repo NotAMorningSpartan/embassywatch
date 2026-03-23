@@ -1,0 +1,40 @@
+export enum Region {
+  AFRICA = "AFRICA",
+  EAST_ASIA_PACIFIC = "EAST_ASIA_PACIFIC",
+  EUROPE_EURASIA = "EUROPE_EURASIA",
+  NEAR_EAST = "NEAR_EAST",
+  SOUTH_CENTRAL_ASIA = "SOUTH_CENTRAL_ASIA",
+  WESTERN_HEMISPHERE = "WESTERN_HEMISPHERE",
+}
+
+export enum ThreatLevel {
+  LOW = "LOW",
+  GUARDED = "GUARDED",
+  ELEVATED = "ELEVATED",
+  HIGH = "HIGH",
+  SEVERE = "SEVERE",
+}
+
+export enum UserRole {
+  ANALYST = "ANALYST",
+  ADMIN = "ADMIN",
+}
+
+export enum DataSourceType {
+  NEWS = "NEWS",
+  WEATHER = "WEATHER",
+  ADVISORY = "ADVISORY",
+  GEOPOLITICAL = "GEOPOLITICAL",
+}
+
+export enum HealthStatus {
+  HEALTHY = "HEALTHY",
+  DEGRADED = "DEGRADED",
+  DOWN = "DOWN",
+}
+
+export enum Severity {
+  INFO = "INFO",
+  WARNING = "WARNING",
+  CRITICAL = "CRITICAL",
+}
