@@ -45,8 +45,31 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
-interface EmbassyDetail extends Embassy {
+export interface EmbassyDetail extends Embassy {
   latestAssessment: ThreatAssessment | null;
+}
+
+export interface RawEvent {
+  id: string;
+  dataSourceId: string;
+  embassyId: string | null;
+  title: string;
+  content: string;
+  eventDate: string;
+  severity: string;
+  category: string;
+  sourceUrl: string;
+  metadata: Record<string, unknown>;
+  processedAt: string | null;
+  createdAt: string;
+  dataSource?: { id: string; name: string; type: string };
+}
+
+interface EventFilters {
+  page?: number;
+  limit?: number;
+  severity?: string;
+  sourceType?: string;
 }
 
 interface EmbassyStats {
@@ -70,6 +93,23 @@ export function useEmbassy(id: string | undefined) {
     queryKey: ["embassy", id],
     queryFn: () =>
       api.get<EmbassyDetail>(`/api/embassies/${id}`).then((r) => r.data),
+    enabled: !!id,
+  });
+}
+
+export function useEmbassyEvents(
+  id: string | undefined,
+  filters: EventFilters = {},
+) {
+  return useQuery({
+    queryKey: ["embassyEvents", id, filters],
+    queryFn: () =>
+      api
+        .get<PaginatedResponse<RawEvent>>(
+          `/api/embassies/${id}/events`,
+          { params: filters },
+        )
+        .then((r) => r.data),
     enabled: !!id,
   });
 }

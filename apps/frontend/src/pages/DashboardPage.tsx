@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useEmbassies, useEmbassyStats } from "../hooks/useEmbassies";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import EmbassyMap from "../components/EmbassyMap";
@@ -31,8 +31,19 @@ const THREAT_LABELS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [regionFilter, setRegionFilter] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [regionFilter, setRegionFilter] = useState(
+    searchParams.get("region") ?? "",
+  );
   const theme = usePreferencesStore((s) => s.theme);
+
+  // Sync region from URL params on mount / navigation
+  useEffect(() => {
+    const urlRegion = searchParams.get("region") ?? "";
+    if (urlRegion !== regionFilter) {
+      setRegionFilter(urlRegion);
+    }
+  }, [searchParams]);
 
   const { data: embassyData, isLoading: embassiesLoading } = useEmbassies({
     limit: 100,
@@ -57,7 +68,14 @@ export default function DashboardPage() {
           <button
             key={r.value}
             className={`ew-region-filter${regionFilter === r.value ? " ew-region-filter--active" : ""}`}
-            onClick={() => setRegionFilter(r.value)}
+            onClick={() => {
+              setRegionFilter(r.value);
+              if (r.value) {
+                setSearchParams({ region: r.value });
+              } else {
+                setSearchParams({});
+              }
+            }}
           >
             {r.label}
           </button>

@@ -3,7 +3,8 @@ import { ILike } from "typeorm";
 import { AppDataSource } from "../config/database.js";
 import { Embassy } from "../entities/Embassy.js";
 import { ThreatAssessment } from "../entities/ThreatAssessment.js";
-import { Region, ThreatLevel } from "../entities/enums.js";
+import { RawEvent } from "../entities/RawEvent.js";
+import { Region, ThreatLevel, Severity } from "../entities/enums.js";
 import { authenticate } from "../middleware/auth.js";
 import { AppError } from "../middleware/errorHandler.js";
 
@@ -12,6 +13,7 @@ router.use(authenticate);
 
 const embassyRepo = () => AppDataSource.getRepository(Embassy);
 const assessmentRepo = () => AppDataSource.getRepository(ThreatAssessment);
+const eventRepo = () => AppDataSource.getRepository(RawEvent);
 
 // GET /api/embassies/stats — must be before /:id
 router.get("/stats", async (_req, res) => {
@@ -106,6 +108,38 @@ router.get("/:id/assessments", async (req, res) => {
     skip: (page - 1) * limit,
     take: limit,
   });
+
+  res.json({ data, total, page, limit });
+});
+
+// GET /api/embassies/:id/events
+router.get("/:id/events", async (req, res) => {
+  const embassy = await embassyRepo().findOneBy({ id: req.params.id });
+  if (!embassy) {
+    throw new AppError(404, "Embassy not found");
+  }
+
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const { severity, sourceType } = req.query;
+
+  const qb = eventRepo()
+    .createQueryBuilder("e")
+    .leftJoinAndSelect("e.dataSource", "ds")
+    .where("e.embassyId = :embassyId", { embassyId: embassy.id });
+
+  if (severity && Object.values(Severity).includes(severity as Severity)) {
+    qb.andWhere("e.severity = :severity", { severity });
+  }
+  if (sourceType && typeof sourceType === "string") {
+    qb.andWhere("ds.type = :sourceType", { sourceType });
+  }
+
+  qb.orderBy("e.eventDate", "DESC")
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  const [data, total] = await qb.getManyAndCount();
 
   res.json({ data, total, page, limit });
 });
