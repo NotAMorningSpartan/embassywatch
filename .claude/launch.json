@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["../../node_modules/vite/bin/vite.js", "--port", "3000"],
+      "port": 3000,
+      "cwd": "apps/frontend"
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["../../node_modules/tsx/dist/cli.mjs", "watch", "src/index.ts"],
+      "port": 4000,
+      "cwd": "apps/backend"
+    }
+  ]
+}
