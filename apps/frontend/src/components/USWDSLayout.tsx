@@ -4,11 +4,47 @@ import { usePreferencesStore } from "../stores/usePreferencesStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useLogout } from "../hooks/useAuth";
 
+const SidebarIcons = {
+  dashboard: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="4" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="11" width="7" height="10" rx="1" />
+    </svg>
+  ),
+  embassies: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      {/* Pediment triangle */}
+      <polygon points="12,2 3,9 21,9" />
+      {/* Entablature beam */}
+      <rect x="3" y="9" width="18" height="2" />
+      {/* Columns */}
+      <rect x="5" y="11" width="2.5" height="9" rx="0.3" />
+      <rect x="10.75" y="11" width="2.5" height="9" rx="0.3" />
+      <rect x="16.5" y="11" width="2.5" height="9" rx="0.3" />
+      {/* Base */}
+      <rect x="2" y="20" width="20" height="2" rx="0.5" />
+    </svg>
+  ),
+  watchlist: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z" />
+    </svg>
+  ),
+  settings: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+};
+
 const sidebarItems = [
-  { to: "/dashboard", icon: "\u{1F4CA}", label: "Dashboard" },
-  { to: "/embassies", icon: "\u{1F3DB}", label: "Embassy List" },
-  { to: "/watchlist", icon: "\u{1F441}", label: "Watchlist" },
-  { to: "/settings", icon: "\u2699\uFE0F", label: "Settings" },
+  { to: "/dashboard", icon: SidebarIcons.dashboard, label: "Dashboard" },
+  { to: "/embassies", icon: SidebarIcons.embassies, label: "Embassy List" },
+  { to: "/watchlist", icon: SidebarIcons.watchlist, label: "Watchlist" },
+  { to: "/settings", icon: SidebarIcons.settings, label: "Settings" },
 ];
 
 function buildBreadcrumbs(pathname: string) {
@@ -239,7 +275,18 @@ export default function USWDSLayout() {
           </div>
         </div>
         <div className="ew-footer__bottom">
-          EmbassyWatch is not affiliated with the U.S. government.
+          <span>EmbassyWatch is not affiliated with the U.S. government.</span>
+          <a
+            href="https://github.com/NotAMorningSpartan/embassywatch"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ew-footer__github"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            View Source on GitHub
+          </a>
         </div>
       </footer>
     </>

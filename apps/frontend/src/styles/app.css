@@ -142,7 +142,7 @@ body {
   padding: 0 24px;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1100;
 }
 
 .ew-header__logo {
@@ -331,10 +331,16 @@ body {
 }
 
 .ew-sidebar__icon {
-  font-size: 1.125rem;
   width: 24px;
-  text-align: center;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.ew-sidebar__icon svg {
+  display: block;
 }
 
 .ew-sidebar__label {
@@ -458,9 +464,24 @@ body {
 
 .ew-footer__bottom {
   padding-top: 16px;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.ew-footer__github {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.ew-footer__github:hover {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* ===== Login Page ===== */
@@ -1921,7 +1942,7 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
+  z-index: 1200;
   display: flex;
   align-items: center;
   justify-content: center;
