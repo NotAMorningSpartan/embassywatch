@@ -2,8 +2,10 @@ import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useEmbassies, useEmbassyStats } from "../hooks/useEmbassies";
+import { useCurrentUser } from "../hooks/useUser";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import EmbassyMap from "../components/EmbassyMap";
+import type { MapStyle } from "../components/EmbassyMap";
 import api from "../services/api";
 import type { Embassy, ThreatAssessment } from "../hooks/useEmbassies";
 
@@ -39,6 +41,8 @@ export default function DashboardPage() {
     searchParams.get("region") ?? "",
   );
   const theme = usePreferencesStore((s) => s.theme);
+  const { data: currentUser } = useCurrentUser();
+  const mapStyle = ((currentUser?.preferences?.settings as Record<string, unknown>)?.mapStyle as MapStyle) ?? "standard";
 
   // Sync region from URL params on mount / navigation
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function DashboardPage() {
         {embassiesLoading ? (
           <div className="ew-dashboard-map__loading">Loading map data...</div>
         ) : (
-          <EmbassyMap embassies={filteredEmbassies} darkMode={theme === "dark"} region={regionFilter} />
+          <EmbassyMap embassies={filteredEmbassies} darkMode={theme === "dark"} region={regionFilter} mapStyle={mapStyle} />
         )}
       </div>
 

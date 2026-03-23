@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { In } from "typeorm";
 import { z } from "zod";
+import bcrypt from "bcrypt";
 import { AppDataSource } from "../config/database.js";
 import { User } from "../entities/User.js";
 import { Embassy } from "../entities/Embassy.js";
@@ -294,6 +295,31 @@ router.delete("/me/watchlist/:embassyId", async (req, res) => {
   });
 
   res.json({ embassies, count: embassies.length });
+});
+
+// PATCH /api/users/me/password
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
+router.patch("/me/password", validate(passwordSchema), async (req, res) => {
+  const user = await userRepo().findOneBy({ id: req.user!.id });
+  if (!user) {
+    throw new AppError(404, "User not found");
+  }
+
+  const { currentPassword, newPassword } = req.body;
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new AppError(400, "Current password is incorrect");
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  await userRepo().save(user);
+
+  res.json({ message: "Password updated successfully" });
 });
 
 export default router;

@@ -18,7 +18,7 @@ import {
   useEmbassyEvents,
   useEmbassies,
 } from "../hooks/useEmbassies";
-import { useWatchlist, useAddToWatchlist, useRemoveFromWatchlist } from "../hooks/useUser";
+import { useWatchlist, useAddToWatchlist, useRemoveFromWatchlist, useCurrentUser } from "../hooks/useUser";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import api from "../services/api";
@@ -57,8 +57,27 @@ const REGION_LABELS: Record<string, string> = {
   WESTERN_HEMISPHERE: "Western Hemisphere",
 };
 
-const LIGHT_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+type MapStyle = "standard" | "satellite" | "high-contrast";
+
+const TILE_URLS: Record<MapStyle, { light: string; dark: string }> = {
+  standard: {
+    light: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  },
+  satellite: {
+    light: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    dark: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  },
+  "high-contrast": {
+    light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    dark: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+  },
+};
+
+function getTileUrl(style: MapStyle, darkMode: boolean): string {
+  const entry = TILE_URLS[style] ?? TILE_URLS.standard;
+  return darkMode ? entry.dark : entry.light;
+}
 
 function confidenceColor(c: number): string {
   if (c >= 0.8) return "#2e8540";
@@ -515,6 +534,8 @@ function MiniMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const theme = usePreferencesStore((s) => s.theme);
+  const { data: currentUser } = useCurrentUser();
+  const mapStyle = ((currentUser?.preferences?.settings as Record<string, unknown>)?.mapStyle as MapStyle) ?? "standard";
   const { data: allEmbassies } = useEmbassies({ limit: 100 });
 
   useEffect(() => {
@@ -529,7 +550,7 @@ function MiniMap({
       dragging: true,
     });
 
-    L.tileLayer(theme === "dark" ? DARK_TILES : LIGHT_TILES).addTo(map);
+    L.tileLayer(getTileUrl(mapStyle, theme === "dark")).addTo(map);
 
     L.circleMarker([lat, lng], {
       radius: 10,

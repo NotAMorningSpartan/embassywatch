@@ -22,13 +22,27 @@ const THREAT_LABELS: Record<string, string> = {
   SEVERE: "Severe",
 };
 
-const LIGHT_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const DARK_TILES =
-  "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const LIGHT_ATTR =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const DARK_ATTR =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
+export type MapStyle = "standard" | "satellite" | "high-contrast";
+
+const TILE_URLS: Record<MapStyle, { light: string; dark: string }> = {
+  standard: {
+    light: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  },
+  satellite: {
+    light: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    dark: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  },
+  "high-contrast": {
+    light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    dark: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+  },
+};
+
+function getTileUrl(mapStyle: MapStyle, darkMode: boolean): string {
+  const entry = TILE_URLS[mapStyle] ?? TILE_URLS.standard;
+  return darkMode ? entry.dark : entry.light;
+}
 
 const DEFAULT_VIEW: [number, number] = [20, 0];
 const DEFAULT_ZOOM = 2;
@@ -46,9 +60,10 @@ interface Props {
   embassies: Embassy[];
   darkMode: boolean;
   region?: string;
+  mapStyle?: MapStyle;
 }
 
-export default function EmbassyMap({ embassies, darkMode, region }: Props) {
+export default function EmbassyMap({ embassies, darkMode, region, mapStyle = "standard" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileRef = useRef<L.TileLayer | null>(null);
@@ -66,9 +81,7 @@ export default function EmbassyMap({ embassies, darkMode, region }: Props) {
       scrollWheelZoom: true,
     });
 
-    tileRef.current = L.tileLayer(darkMode ? DARK_TILES : LIGHT_TILES, {
-      attribution: darkMode ? DARK_ATTR : LIGHT_ATTR,
-    }).addTo(map);
+    tileRef.current = L.tileLayer(getTileUrl(mapStyle, darkMode)).addTo(map);
 
     clusterRef.current = L.markerClusterGroup({
       maxClusterRadius: 40,
@@ -95,12 +108,11 @@ export default function EmbassyMap({ embassies, darkMode, region }: Props) {
     };
   }, []);
 
-  // Switch tiles on theme change
+  // Switch tiles on theme or style change
   useEffect(() => {
     if (!mapRef.current || !tileRef.current) return;
-    tileRef.current.setUrl(darkMode ? DARK_TILES : LIGHT_TILES);
-    tileRef.current.options.attribution = darkMode ? DARK_ATTR : LIGHT_ATTR;
-  }, [darkMode]);
+    tileRef.current.setUrl(getTileUrl(mapStyle, darkMode));
+  }, [darkMode, mapStyle]);
 
   // Zoom to region when filter changes
   useEffect(() => {
