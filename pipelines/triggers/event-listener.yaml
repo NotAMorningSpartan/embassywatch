@@ -1,0 +1,102 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: embassywatch-webhook
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    # Trigger frontend build on push to apps/frontend/ on main
+    - name: frontend-push
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: secretRef
+              value:
+                secretName: github-webhook-secret
+                secretKey: secret
+            - name: eventTypes
+              value:
+                - push
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c, c.added.exists(f, f.startsWith('apps/frontend/')) ||
+                                       c.modified.exists(f, f.startsWith('apps/frontend/')) ||
+                                       c.removed.exists(f, f.startsWith('apps/frontend/')))
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: build-frontend-trigger
+
+    # Trigger backend build on push to apps/backend/ on main
+    - name: backend-push
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: secretRef
+              value:
+                secretName: github-webhook-secret
+                secretKey: secret
+            - name: eventTypes
+              value:
+                - push
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c, c.added.exists(f, f.startsWith('apps/backend/')) ||
+                                       c.modified.exists(f, f.startsWith('apps/backend/')) ||
+                                       c.removed.exists(f, f.startsWith('apps/backend/')))
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: build-backend-trigger
+
+  resources:
+    kubernetesResource:
+      spec:
+        template:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    memory: 64Mi
+                    cpu: 50m
+                  limits:
+                    memory: 128Mi
+                    cpu: 100m
+---
+# Secret for GitHub webhook validation
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-webhook-secret
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+type: Opaque
+stringData:
+  secret: "REPLACE_WITH_WEBHOOK_SECRET"
+---
+# Route to expose the EventListener externally
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: embassywatch-webhook
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  to:
+    kind: Service
+    name: el-embassywatch-webhook
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

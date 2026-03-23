@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: npm-build
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: Run npm build
+  workspaces:
+    - name: source
+      description: The workspace containing the source code
+  params:
+    - name: APP_DIR
+      type: string
+      description: Subdirectory of the app within the workspace
+  steps:
+    - name: build
+      image: node:20-alpine
+      workingDir: $(workspaces.source.path)/$(params.APP_DIR)
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Building $(params.APP_DIR)..."
+        npm run build
+        echo "Build completed successfully."
+      resources:
+        requests:
+          memory: 1Gi
+          cpu: 500m
+        limits:
+          memory: 2Gi
+          cpu: "1"

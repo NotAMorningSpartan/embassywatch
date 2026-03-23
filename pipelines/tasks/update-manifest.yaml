@@ -1,0 +1,87 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: update-manifest
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: >
+    Update the image tag in a Kustomize overlay and commit the change.
+    ArgoCD detects the commit and syncs the environment.
+  workspaces:
+    - name: source
+      description: The workspace containing the git repo
+  params:
+    - name: IMAGE_NAME
+      type: string
+      description: Full image name (registry/org/repo)
+    - name: IMAGE_TAG
+      type: string
+      description: New image tag (e.g., sha-abc1234)
+    - name: OVERLAY_PATH
+      type: string
+      description: Path to the Kustomize overlay (e.g., deploy/overlays/dev)
+    - name: APP_NAME
+      type: string
+      description: Application name (frontend or backend)
+    - name: GIT_USER_NAME
+      type: string
+      default: "tekton-pipeline"
+    - name: GIT_USER_EMAIL
+      type: string
+      default: "tekton@embassywatch.gov"
+  steps:
+    - name: update-kustomization
+      image: alpine/git:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+
+        OVERLAY="$(params.OVERLAY_PATH)/kustomization.yaml"
+        echo "Updating $OVERLAY with image $(params.IMAGE_NAME):$(params.IMAGE_TAG)"
+
+        # Install yq for YAML manipulation
+        apk add --no-cache yq > /dev/null 2>&1
+
+        # Update or add the image entry in kustomization.yaml
+        # Uses kustomize edit if available, otherwise manual yq
+        if command -v kustomize > /dev/null 2>&1; then
+          cd $(params.OVERLAY_PATH)
+          kustomize edit set image $(params.APP_NAME)=$(params.IMAGE_NAME):$(params.IMAGE_TAG)
+          cd $(workspaces.source.path)
+        else
+          yq eval -i "
+            .images = [
+              (.images // [] | .[] | select(.name != \"$(params.APP_NAME)\")),
+              {\"name\": \"$(params.APP_NAME)\", \"newName\": \"$(params.IMAGE_NAME)\", \"newTag\": \"$(params.IMAGE_TAG)\"}
+            ]
+          " "$OVERLAY"
+        fi
+
+        echo "Updated kustomization.yaml:"
+        cat "$OVERLAY"
+
+    - name: commit-and-push
+      image: alpine/git:latest
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        set -e
+
+        git config user.name "$(params.GIT_USER_NAME)"
+        git config user.email "$(params.GIT_USER_EMAIL)"
+
+        git add $(params.OVERLAY_PATH)/kustomization.yaml
+
+        if git diff --cached --quiet; then
+          echo "No changes to commit."
+          exit 0
+        fi
+
+        git commit -m "chore(deploy): update $(params.APP_NAME) image to $(params.IMAGE_TAG)
+
+        Automated by Tekton pipeline."
+
+        git push origin HEAD
+        echo "Manifest updated and pushed."

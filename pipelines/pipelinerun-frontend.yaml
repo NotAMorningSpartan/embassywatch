@@ -1,0 +1,30 @@
+# Manual PipelineRun for the frontend build pipeline.
+# Use: oc create -f pipelines/pipelinerun-frontend.yaml
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: build-frontend-manual-
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+    tekton.dev/pipeline: build-frontend
+spec:
+  pipelineRef:
+    name: build-frontend
+  params:
+    - name: GIT_REPO_URL
+      value: "https://github.com/NotAMorningSpartan/embassywatch.git"
+    - name: GIT_REVISION
+      value: main
+    - name: IMAGE_TAG
+      value: "manual-latest"
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  serviceAccountName: pipeline
+  timeout: 30m

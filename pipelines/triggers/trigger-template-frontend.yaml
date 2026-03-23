@@ -1,0 +1,41 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: build-frontend-trigger
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  params:
+    - name: git-revision
+      description: The git revision (commit SHA)
+    - name: git-repo-url
+      description: The git repository URL
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: build-frontend-
+        labels:
+          app.kubernetes.io/part-of: embassywatch
+          tekton.dev/pipeline: build-frontend
+      spec:
+        pipelineRef:
+          name: build-frontend
+        params:
+          - name: GIT_REPO_URL
+            value: $(tt.params.git-repo-url)
+          - name: GIT_REVISION
+            value: $(tt.params.git-revision)
+          - name: IMAGE_TAG
+            value: "sha-$(tt.params.git-revision)"
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+        serviceAccountName: pipeline
+        timeout: 30m

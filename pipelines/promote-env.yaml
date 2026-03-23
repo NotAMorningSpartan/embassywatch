@@ -1,0 +1,84 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: promote-env
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: >
+    Promote an application from one environment to another by copying the
+    image tag from the source overlay's kustomization.yaml to the target overlay.
+    ArgoCD detects the commit and syncs the target environment.
+
+  params:
+    - name: GIT_REPO_URL
+      type: string
+      description: Git repository URL
+      default: "https://github.com/NotAMorningSpartan/embassywatch.git"
+    - name: GIT_REVISION
+      type: string
+      default: main
+    - name: APP_NAME
+      type: string
+      description: Application to promote (frontend or backend)
+    - name: SOURCE_ENV
+      type: string
+      description: Source environment overlay (e.g., dev)
+    - name: TARGET_ENV
+      type: string
+      description: Target environment overlay (e.g., staging, prod)
+    - name: GIT_USER_NAME
+      type: string
+      default: "tekton-pipeline"
+    - name: GIT_USER_EMAIL
+      type: string
+      default: "tekton@embassywatch.gov"
+
+  workspaces:
+    - name: shared-workspace
+      description: Shared workspace for all pipeline tasks
+    - name: git-credentials
+      description: Git credentials for push operations
+      optional: true
+
+  tasks:
+    # Stage 1: Clone the repository
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.GIT_REPO_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    # Stage 2: Copy the image tag from source to target
+    - name: promote
+      taskRef:
+        name: promote-image
+      runAfter:
+        - git-clone
+      params:
+        - name: APP_NAME
+          value: $(params.APP_NAME)
+        - name: SOURCE_OVERLAY
+          value: deploy/overlays/$(params.SOURCE_ENV)
+        - name: TARGET_OVERLAY
+          value: deploy/overlays/$(params.TARGET_ENV)
+        - name: SOURCE_ENV
+          value: $(params.SOURCE_ENV)
+        - name: TARGET_ENV
+          value: $(params.TARGET_ENV)
+        - name: GIT_USER_NAME
+          value: $(params.GIT_USER_NAME)
+        - name: GIT_USER_EMAIL
+          value: $(params.GIT_USER_EMAIL)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
