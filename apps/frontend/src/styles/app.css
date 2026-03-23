@@ -2205,16 +2205,19 @@ body {
 /* Table view */
 .ew-list-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ew-list-table {
   width: 100%;
+  min-width: 700px;
   border-collapse: collapse;
   font-size: 0.85rem;
   background: var(--ew-white);
   border: 1px solid var(--ew-gray-light);
   border-radius: 6px;
   overflow: hidden;
+  table-layout: fixed;
 }
 
 .ew-list-table th {
@@ -2242,6 +2245,9 @@ body {
   padding: 10px 12px;
   border-bottom: 1px solid var(--ew-gray-light);
   color: var(--ew-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ew-list-table__zebra td {
@@ -2250,6 +2256,8 @@ body {
 
 .ew-list-table__name {
   font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .ew-list-table__region {
@@ -2271,6 +2279,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .ew-list-table__view {
@@ -2542,4 +2552,394 @@ body {
 
 [data-theme="dark"] .ew-threat-pill {
   background: transparent;
+}
+
+/* ===== Watchlist Page ===== */
+.ew-watchlist-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.ew-watchlist-empty svg {
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.ew-watchlist-empty h2 {
+  margin-bottom: 8px;
+  color: var(--ew-text);
+}
+
+.ew-watchlist-empty p {
+  color: var(--ew-gray);
+  margin-bottom: 24px;
+}
+
+.ew-watchlist-helper {
+  font-size: 0.85rem;
+  color: var(--ew-gray);
+  margin: 4px 0 0;
+}
+
+/* Notification settings */
+.ew-watchlist-notif {
+  margin-bottom: 16px;
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 4px;
+  background: var(--ew-card-bg, var(--ew-white));
+}
+
+.ew-watchlist-notif__toggle {
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ew-text);
+  cursor: pointer;
+}
+
+.ew-watchlist-notif__toggle:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.ew-watchlist-notif__body {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ew-watchlist-notif__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--ew-text);
+  cursor: pointer;
+}
+
+.ew-watchlist-notif__method {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.ew-watchlist-notif__method label {
+  white-space: nowrap;
+}
+
+/* Overview bar */
+.ew-watchlist-overview {
+  margin-bottom: 16px;
+}
+
+.ew-watchlist-overview__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.ew-watchlist-overview__card {
+  padding: 6px 14px;
+  border: 2px solid;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background: var(--ew-card-bg, var(--ew-white));
+  transition: all 0.15s;
+}
+
+.ew-watchlist-overview__card:hover {
+  opacity: 0.85;
+}
+
+.ew-watchlist-overview__card strong {
+  font-size: 1.1rem;
+  margin-right: 4px;
+}
+
+/* Highest threat alert */
+.ew-watchlist-alert {
+  display: block;
+  padding: 10px 16px;
+  border-radius: 4px;
+  border-left: 4px solid;
+  text-decoration: none;
+  color: var(--ew-text);
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+
+.ew-watchlist-alert--warning {
+  background: rgba(232, 119, 34, 0.08);
+  border-color: #e87722;
+}
+
+.ew-watchlist-alert--error {
+  background: rgba(216, 57, 51, 0.08);
+  border-color: #d83933;
+}
+
+.ew-watchlist-alert:hover {
+  opacity: 0.9;
+}
+
+/* Mini map */
+.ew-watchlist-map {
+  height: 30vh;
+  min-height: 200px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--ew-gray-light);
+  margin-bottom: 16px;
+}
+
+/* Highlight animation */
+.ew-watchlist-highlight {
+  animation: watchlist-highlight 2s ease-out;
+}
+
+@keyframes watchlist-highlight {
+  0% { background: rgba(46, 117, 182, 0.25); }
+  100% { background: transparent; }
+}
+
+/* Trend indicators */
+.ew-trend {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.ew-trend--worsening {
+  color: #d83933;
+}
+
+.ew-trend--improving {
+  color: #2e8540;
+}
+
+.ew-trend--stable {
+  color: var(--ew-gray);
+}
+
+/* Remove button */
+.ew-watchlist-remove-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.ew-watchlist-remove-btn {
+  background: none;
+  border: none;
+  color: var(--ew-gray);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.ew-watchlist-remove-btn:hover {
+  color: #d83933;
+  background: rgba(216, 57, 51, 0.08);
+}
+
+.ew-watchlist-confirm-tooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  background: var(--ew-card-bg, var(--ew-white));
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+/* Select controls */
+.ew-watchlist-select-controls {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Bulk action bar */
+.ew-watchlist-bulk-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--ew-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  z-index: 1050;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.2);
+  font-size: 0.9rem;
+}
+
+/* Changes panel */
+.ew-watchlist-changes {
+  margin-top: 24px;
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 6px;
+  padding: 20px;
+  background: var(--ew-card-bg, var(--ew-white));
+}
+
+.ew-watchlist-changes h2 {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+.ew-watchlist-changes__none {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2e8540;
+  font-size: 0.9rem;
+}
+
+.ew-watchlist-changes__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ew-watchlist-changes__item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ew-gray-light);
+  font-size: 0.875rem;
+}
+
+.ew-watchlist-changes__item:last-child {
+  border-bottom: none;
+}
+
+.ew-watchlist-changes__item a {
+  color: var(--ew-text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ew-watchlist-changes__item a:hover {
+  color: var(--ew-secondary);
+}
+
+.ew-watchlist-changes__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Button styles */
+.ew-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.ew-btn--primary {
+  background: var(--ew-secondary);
+  color: #fff;
+}
+
+.ew-btn--primary:hover {
+  opacity: 0.9;
+}
+
+.ew-btn--danger {
+  background: #d83933;
+  color: #fff;
+}
+
+.ew-btn--danger:hover {
+  background: #c0312b;
+}
+
+.ew-btn--outline {
+  background: transparent;
+  border: 1px solid var(--ew-gray-light);
+  color: var(--ew-text);
+}
+
+.ew-btn--outline:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.ew-btn--sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+/* Modal */
+.ew-modal {
+  background: var(--ew-card-bg, var(--ew-white));
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.ew-modal h3 {
+  margin-bottom: 8px;
+}
+
+.ew-modal p {
+  margin-bottom: 20px;
+  color: var(--ew-gray);
+}
+
+.ew-modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .ew-watchlist-notif {
+  border-color: #3a3f4b;
+}
+
+[data-theme="dark"] .ew-watchlist-notif__toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .ew-watchlist-changes {
+  border-color: #3a3f4b;
+}
+
+[data-theme="dark"] .ew-watchlist-confirm-tooltip {
+  background: #2c3040;
+  border-color: #3a3f4b;
+}
+
+[data-theme="dark"] .ew-watchlist-bulk-bar {
+  background: #1a2332;
+}
+
+[data-theme="dark"] .ew-watchlist-remove-btn:hover {
+  background: rgba(216, 57, 51, 0.15);
 }
