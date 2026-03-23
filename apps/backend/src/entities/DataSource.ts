@@ -12,19 +12,19 @@ export class DataSource {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column()
+  @Column({ type: "varchar" })
   name!: string;
 
   @Column({ type: "enum", enum: DataSourceType })
   type!: DataSourceType;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   endpoint!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   apiKey!: string;
 
-  @Column({ default: true })
+  @Column({ type: "boolean", default: true })
   enabled!: boolean;
 
   @Column({ type: "timestamptz", nullable: true })

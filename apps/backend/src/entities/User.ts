@@ -12,13 +12,13 @@ export class User {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ unique: true })
+  @Column({ type: "varchar", unique: true })
   email!: string;
 
-  @Column()
+  @Column({ type: "varchar" })
   passwordHash!: string;
 
-  @Column()
+  @Column({ type: "varchar" })
   displayName!: string;
 
   @Column({ type: "enum", enum: UserRole, default: UserRole.ANALYST })

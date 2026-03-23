@@ -15,13 +15,13 @@ export class RawEvent {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column()
+  @Column({ type: "uuid" })
   dataSourceId!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "uuid", nullable: true })
   embassyId!: string | null;
 
-  @Column()
+  @Column({ type: "varchar" })
   title!: string;
 
   @Column({ type: "text" })
@@ -33,10 +33,10 @@ export class RawEvent {
   @Column({ type: "enum", enum: Severity })
   severity!: Severity;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   category!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   sourceUrl!: string;
 
   @Column({ type: "jsonb", default: {} })

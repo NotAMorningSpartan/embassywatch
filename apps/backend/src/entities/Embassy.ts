@@ -15,13 +15,13 @@ export class Embassy {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column()
+  @Column({ type: "varchar" })
   name!: string;
 
-  @Column()
+  @Column({ type: "varchar" })
   city!: string;
 
-  @Column()
+  @Column({ type: "varchar" })
   country!: string;
 
   @Column({ type: "enum", enum: Region })
@@ -33,7 +33,7 @@ export class Embassy {
   @Column({ type: "float" })
   longitude!: number;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   address!: string;
 
   @Column({ type: "enum", enum: ThreatLevel, default: ThreatLevel.LOW })

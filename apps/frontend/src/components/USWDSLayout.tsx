@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
+import { useAuthStore } from "../stores/useAuthStore";
+import { useLogout } from "../hooks/useAuth";
 
 const sidebarItems = [
   { to: "/dashboard", icon: "\u{1F4CA}", label: "Dashboard" },
@@ -22,8 +24,20 @@ export default function USWDSLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const breadcrumbs = buildBreadcrumbs(location.pathname);
   const { theme, toggleTheme } = usePreferencesStore();
+  const user = useAuthStore((s) => s.user);
+  const logout = useLogout();
+
+  const initials = user
+    ? user.displayName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -56,7 +70,16 @@ export default function USWDSLayout() {
       {/* Header */}
       <header className="ew-header">
         <Link to="/dashboard" className="ew-header__logo">
-          <span className="ew-header__logo-icon">{"\u{1F3DB}"}</span>
+          <svg className="ew-header__logo-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            {/* Globe */}
+            <circle cx="12" cy="12" r="9" />
+            <ellipse cx="12" cy="12" rx="3.5" ry="9" />
+            <path d="M3.5 8.5h17M3.5 15.5h17" />
+            {/* Crosshairs */}
+            <path d="M12 1v3M12 20v3M1 12h3M20 12h3" strokeWidth="2" strokeLinecap="round" />
+            {/* Center dot */}
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+          </svg>
           EmbassyWatch
         </Link>
 
@@ -87,7 +110,7 @@ export default function USWDSLayout() {
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               aria-label="User menu"
             >
-              JD
+              {initials}
             </button>
             {userMenuOpen && (
               <div className="ew-user-menu__dropdown">
@@ -127,7 +150,10 @@ export default function USWDSLayout() {
                 </Link>
                 <button
                   className="ew-user-menu__item"
-                  onClick={() => setUserMenuOpen(false)}
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    logout.mutate();
+                  }}
                 >
                   Sign out
                 </button>

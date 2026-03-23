@@ -14,7 +14,7 @@ export class ThreatAssessment {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column()
+  @Column({ type: "uuid" })
   embassyId!: string;
 
   @Column({ type: "enum", enum: ThreatLevel })
@@ -32,7 +32,7 @@ export class ThreatAssessment {
   @Column({ type: "jsonb", default: [] })
   recommendations!: string[];
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   aiModelUsed!: string;
 
   @Column({ type: "text", nullable: true })
