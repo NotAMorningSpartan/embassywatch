@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: npm-install
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: Install npm dependencies using npm ci
+  workspaces:
+    - name: source
+      description: The workspace containing the source code
+  params:
+    - name: APP_DIR
+      type: string
+      description: Subdirectory of the app within the workspace
+  steps:
+    - name: install
+      image: node:20-alpine
+      workingDir: $(workspaces.source.path)/$(params.APP_DIR)
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Installing dependencies for $(params.APP_DIR)..."
+        npm ci --ignore-scripts
+        echo "Dependencies installed successfully."
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m

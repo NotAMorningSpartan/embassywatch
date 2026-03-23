@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: npm-lint
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: Run npm lint checks
+  workspaces:
+    - name: source
+      description: The workspace containing the source code
+  params:
+    - name: APP_DIR
+      type: string
+      description: Subdirectory of the app within the workspace
+  steps:
+    - name: lint
+      image: node:20-alpine
+      workingDir: $(workspaces.source.path)/$(params.APP_DIR)
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Linting $(params.APP_DIR)..."
+        if npm run lint --if-present 2>/dev/null; then
+          echo "Lint passed."
+        else
+          echo "No lint script found or lint failed."
+          exit 1
+        fi
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m

@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: npm-test
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: Run npm test suite
+  workspaces:
+    - name: source
+      description: The workspace containing the source code
+  params:
+    - name: APP_DIR
+      type: string
+      description: Subdirectory of the app within the workspace
+  steps:
+    - name: test
+      image: node:20-alpine
+      workingDir: $(workspaces.source.path)/$(params.APP_DIR)
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Running tests for $(params.APP_DIR)..."
+        if npm run test --if-present 2>/dev/null; then
+          echo "Tests passed."
+        else
+          echo "No test script found or tests failed."
+          exit 1
+        fi
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m

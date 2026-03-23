@@ -1,0 +1,174 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-frontend
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+    app.kubernetes.io/component: frontend
+spec:
+  description: >
+    CI/CD pipeline for the EmbassyWatch frontend.
+    Clones source, installs deps, runs tests, builds production bundle,
+    builds container image with Buildah, pushes to registry,
+    and updates the dev overlay manifest for ArgoCD.
+
+  params:
+    - name: GIT_REPO_URL
+      type: string
+      description: Git repository URL
+      default: "https://github.com/NotAMorningSpartan/embassywatch.git"
+    - name: GIT_REVISION
+      type: string
+      description: Git revision to build (branch, tag, or commit SHA)
+      default: main
+    - name: IMAGE_REGISTRY
+      type: string
+      description: Container image registry
+      default: "image-registry.openshift-image-registry.svc:5000"
+    - name: IMAGE_NAMESPACE
+      type: string
+      description: Namespace/org for the image
+      default: embassywatch-dev
+    - name: IMAGE_NAME
+      type: string
+      default: embassywatch-frontend
+    - name: IMAGE_TAG
+      type: string
+      description: Tag for the built image (typically git SHA)
+      default: latest
+
+  workspaces:
+    - name: shared-workspace
+      description: Shared workspace for all pipeline tasks
+    - name: git-credentials
+      description: Git credentials for push operations
+      optional: true
+
+  tasks:
+    # Stage 1: Clone
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.GIT_REPO_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    # Stage 2: Install dependencies
+    - name: npm-install
+      taskRef:
+        name: npm-install
+      runAfter:
+        - git-clone
+      params:
+        - name: APP_DIR
+          value: apps/frontend
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Stage 3: Run tests
+    - name: npm-test
+      taskRef:
+        name: npm-test
+      runAfter:
+        - npm-install
+      params:
+        - name: APP_DIR
+          value: apps/frontend
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Stage 4: Build production bundle
+    - name: npm-build
+      taskRef:
+        name: npm-build
+      runAfter:
+        - npm-test
+      params:
+        - name: APP_DIR
+          value: apps/frontend
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Stage 5: Build container image
+    - name: buildah-build
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      runAfter:
+        - npm-build
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_REGISTRY)/$(params.IMAGE_NAMESPACE)/$(params.IMAGE_NAME):$(params.IMAGE_TAG)
+        - name: DOCKERFILE
+          value: apps/frontend/Containerfile
+        - name: CONTEXT
+          value: apps/frontend
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Stage 6: Push image to registry
+    - name: push-image
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      runAfter:
+        - buildah-build
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_REGISTRY)/$(params.IMAGE_NAMESPACE)/$(params.IMAGE_NAME):$(params.IMAGE_TAG)
+        - name: BUILDER_IMAGE
+          value: registry.access.redhat.com/ubi9/buildah:latest
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Stage 7: Update dev manifest for ArgoCD
+    - name: update-manifest
+      taskRef:
+        name: update-manifest
+      runAfter:
+        - push-image
+      params:
+        - name: IMAGE_NAME
+          value: $(params.IMAGE_REGISTRY)/$(params.IMAGE_NAMESPACE)/$(params.IMAGE_NAME)
+        - name: IMAGE_TAG
+          value: $(params.IMAGE_TAG)
+        - name: OVERLAY_PATH
+          value: deploy/overlays/dev
+        - name: APP_NAME
+          value: frontend
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+  finally:
+    - name: report-status
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.GIT_REPO_URL)
+        - name: revision
+          value: $(params.GIT_REVISION)
+        - name: deleteExisting
+          value: "false"
+      workspaces:
+        - name: output
+          workspace: shared-workspace

@@ -1,0 +1,31 @@
+# Manual PipelineRun for environment promotion.
+# Edit APP_NAME, SOURCE_ENV, TARGET_ENV before running.
+# Use: oc create -f pipelines/pipelinerun-promote.yaml
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: promote-env-
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+    tekton.dev/pipeline: promote-env
+spec:
+  pipelineRef:
+    name: promote-env
+  params:
+    - name: APP_NAME
+      value: "frontend"
+    - name: SOURCE_ENV
+      value: "dev"
+    - name: TARGET_ENV
+      value: "staging"
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 512Mi
+  serviceAccountName: pipeline
+  timeout: 15m
