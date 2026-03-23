@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: embassywatch-backend-pdb
+  labels:
+    app: embassywatch
+    component: backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: embassywatch
+      component: backend

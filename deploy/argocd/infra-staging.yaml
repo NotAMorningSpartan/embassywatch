@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: embassywatch-infra-staging
+  namespace: argocd
+  labels:
+    app: embassywatch
+    env: staging
+    component: infra
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NotAMorningSpartan/embassywatch.git
+    targetRevision: main
+    path: deploy/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: embassywatch-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

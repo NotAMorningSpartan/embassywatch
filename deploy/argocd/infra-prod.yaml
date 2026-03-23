@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: embassywatch-infra-prod
+  namespace: argocd
+  labels:
+    app: embassywatch
+    env: prod
+    component: infra
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NotAMorningSpartan/embassywatch.git
+    targetRevision: main
+    path: deploy/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: embassywatch-prod
+  syncPolicy:
+    # Production: manual sync only
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true

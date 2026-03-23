@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: embassywatch
+  namespace: argocd
+  labels:
+    app: embassywatch
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NotAMorningSpartan/embassywatch.git
+    targetRevision: main
+    path: deploy/argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

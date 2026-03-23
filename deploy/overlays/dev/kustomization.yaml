@@ -1,0 +1,104 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: embassywatch-dev
+
+resources:
+  - ../../base
+
+patches:
+  # Frontend: 1 replica, lower resources
+  - target:
+      kind: Deployment
+      name: embassywatch-frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+
+  # Backend: 1 replica, lower resources
+  - target:
+      kind: Deployment
+      name: embassywatch-backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+
+  # HPA: min 1
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: embassywatch-backend
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+
+  # Postgres PVC: 1Gi
+  - target:
+      kind: StatefulSet
+      name: embassywatch-postgres
+    patch: |
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+
+  # Redis PVC: 1Gi (same as base, lower resources)
+  - target:
+      kind: StatefulSet
+      name: embassywatch-redis
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+
+  # ConfigMap: dev-specific values
+  - target:
+      kind: ConfigMap
+      name: embassywatch-backend-config
+    patch: |
+      - op: replace
+        path: /data/USE_MOCK_DATA
+        value: "true"
+      - op: add
+        path: /data/LOG_LEVEL
+        value: "debug"
+      - op: replace
+        path: /data/NODE_ENV
+        value: "development"
