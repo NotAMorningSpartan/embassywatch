@@ -45,9 +45,27 @@ const SORT_OPTIONS = [
   { value: "assessed_desc", label: "Last Assessed (Recent)" },
 ];
 
-const LIGHT_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const DARK_TILES =
-  "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+type MapStyle = "standard" | "satellite" | "high-contrast";
+
+const TILE_URLS: Record<MapStyle, { light: string; dark: string }> = {
+  standard: {
+    light: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  },
+  satellite: {
+    light: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    dark: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  },
+  "high-contrast": {
+    light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    dark: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
+  },
+};
+
+function getTileUrl(mapStyle: MapStyle, darkMode: boolean): string {
+  const entry = TILE_URLS[mapStyle] ?? TILE_URLS.standard;
+  return darkMode ? entry.dark : entry.light;
+}
 
 function relativeTime(date: string | null): string {
   if (!date) return "Never";
@@ -96,6 +114,7 @@ export default function WatchlistPage() {
   const removeFromWatchlist = useRemoveFromWatchlist();
   const { data: currentUser } = useCurrentUser();
   const updatePreferences = useUpdatePreferences();
+  const mapStyle = ((currentUser?.preferences?.settings as Record<string, unknown>)?.mapStyle as MapStyle) ?? "standard";
 
   // Apply client-side threat filter
   const embassies = useMemo(() => {
@@ -136,7 +155,7 @@ export default function WatchlistPage() {
       scrollWheelZoom: true,
     });
     tileRef.current = L.tileLayer(
-      theme === "dark" ? DARK_TILES : LIGHT_TILES,
+      getTileUrl(mapStyle, theme === "dark"),
     ).addTo(map);
     mapRef.current = map;
     return () => {
@@ -148,8 +167,8 @@ export default function WatchlistPage() {
   // Switch tiles on theme change
   useEffect(() => {
     if (!tileRef.current) return;
-    tileRef.current.setUrl(theme === "dark" ? DARK_TILES : LIGHT_TILES);
-  }, [theme]);
+    tileRef.current.setUrl(getTileUrl(mapStyle, theme === "dark"));
+  }, [theme, mapStyle]);
 
   // Update markers
   useEffect(() => {
