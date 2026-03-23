@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: embassywatch-redis
+  labels:
+    app: embassywatch
+    component: redis
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+  selector:
+    app: embassywatch
+    component: redis
