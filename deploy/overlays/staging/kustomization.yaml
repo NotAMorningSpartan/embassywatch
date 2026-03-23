@@ -1,0 +1,89 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: embassywatch-staging
+
+resources:
+  - ../../base
+
+patches:
+  # Frontend: 2 replicas, moderate resources
+  - target:
+      kind: Deployment
+      name: embassywatch-frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+
+  # Backend: 2 replicas, moderate resources
+  - target:
+      kind: Deployment
+      name: embassywatch-backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+  # HPA: min 2, max 6
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: embassywatch-backend
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 6
+
+  # Postgres PVC: 5Gi
+  - target:
+      kind: StatefulSet
+      name: embassywatch-postgres
+    patch: |
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 5Gi
+
+  # Redis PVC: 2Gi
+  - target:
+      kind: StatefulSet
+      name: embassywatch-redis
+    patch: |
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 2Gi
+
+  # ConfigMap: staging-specific values
+  - target:
+      kind: ConfigMap
+      name: embassywatch-backend-config
+    patch: |
+      - op: replace
+        path: /data/USE_MOCK_DATA
+        value: "false"
+      - op: add
+        path: /data/LOG_LEVEL
+        value: "info"
+      - op: replace
+        path: /data/NODE_ENV
+        value: "staging"
