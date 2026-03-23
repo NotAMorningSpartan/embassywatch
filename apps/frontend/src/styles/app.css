@@ -1705,3 +1705,330 @@ body {
 [data-theme="dark"] .ew-admin-test-result {
   background: #16162a;
 }
+
+/* ===== Enhanced Assessment ===== */
+
+.ew-detail-assessment__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ew-gray-light);
+}
+
+.ew-detail-assessment__header h2 {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.ew-detail-assessment__summary p {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ew-ink);
+}
+
+.ew-detail-assessment__summary p:last-child {
+  margin-bottom: 16px;
+}
+
+.ew-detail-assessment__empty {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.ew-detail-assessment__empty .ew-admin-btn {
+  margin-top: 12px;
+}
+
+/* Alert boxes */
+.ew-alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  border-left: 4px solid;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.ew-alert--warning {
+  background: #fef3cd;
+  border-left-color: #e8a820;
+  color: #856404;
+}
+
+.ew-alert--info {
+  background: #e8f4fd;
+  border-left-color: #2e75b6;
+  color: #1a3a5c;
+}
+
+.ew-alert h3 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+
+.ew-alert ol {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+[data-theme="dark"] .ew-alert--warning {
+  background: rgba(232, 168, 32, 0.1);
+  color: #e8a820;
+}
+
+[data-theme="dark"] .ew-alert--info {
+  background: rgba(46, 117, 182, 0.1);
+  color: #4a9ae5;
+}
+
+/* Interactive chips */
+.ew-chip--interactive {
+  cursor: pointer;
+  border: 1px solid var(--ew-gray-light);
+  background: var(--ew-gray-lightest);
+  transition: all 0.15s;
+}
+
+.ew-chip--interactive:hover {
+  border-color: var(--ew-secondary);
+  color: var(--ew-secondary);
+}
+
+.ew-chip--active {
+  background: var(--ew-secondary);
+  color: #fff;
+  border-color: var(--ew-secondary);
+}
+
+/* Highlighted event row */
+.ew-detail-events__row--highlighted td {
+  background: rgba(46, 117, 182, 0.08);
+  border-left: 3px solid var(--ew-secondary);
+}
+
+[data-theme="dark"] .ew-detail-events__row--highlighted td {
+  background: rgba(74, 154, 229, 0.1);
+}
+
+/* ===== Threat Summary ===== */
+
+.ew-threat-summary {
+  margin-bottom: 24px;
+}
+
+.ew-threat-summary h2 {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+  color: var(--ew-ink);
+}
+
+.ew-threat-summary__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ew-threat-summary__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--ew-white);
+  border: 1px solid var(--ew-gray-light);
+  border-left: 4px solid #d83933;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--ew-ink);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ew-threat-summary__item:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border-left-color: #e87722;
+}
+
+.ew-threat-summary__badge {
+  padding: 3px 10px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ew-threat-summary__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ew-threat-summary__info strong {
+  font-size: 0.85rem;
+}
+
+.ew-threat-summary__info span {
+  font-size: 0.75rem;
+  color: var(--ew-gray);
+}
+
+[data-theme="dark"] .ew-threat-summary__item {
+  background: #1a1a2e;
+  border-color: #2d2d44;
+  border-left-color: #d83933;
+  color: #e0e0e8;
+}
+
+/* ===== Compare checkbox ===== */
+
+.ew-assessment-card__wrap {
+  position: relative;
+}
+
+.ew-assessment-card__compare {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--ew-gray);
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.ew-assessment-card__compare input {
+  margin: 0;
+}
+
+.ew-recent-assessments__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ew-recent-assessments__header h2 {
+  margin: 0;
+}
+
+/* ===== Comparison Modal ===== */
+
+.ew-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ew-modal {
+  background: var(--ew-white);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.ew-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.ew-modal__header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.ew-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--ew-gray);
+  padding: 0 4px;
+}
+
+.ew-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.ew-compare-col {
+  padding: 14px;
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 6px;
+}
+
+.ew-compare-col h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+.ew-compare-col__location {
+  font-size: 0.8rem;
+  color: var(--ew-gray);
+  margin: 0 0 8px;
+}
+
+.ew-compare-col__threat {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.ew-compare-col__confidence {
+  font-size: 0.8rem;
+  color: var(--ew-gray-dark);
+  margin-bottom: 10px;
+}
+
+.ew-compare-col__factors {
+  font-size: 0.8rem;
+}
+
+.ew-compare-col__factors ul {
+  padding-left: 18px;
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.ew-compare-col__shared {
+  background: rgba(46, 117, 182, 0.1);
+  border-radius: 2px;
+  padding: 1px 4px;
+}
+
+.ew-compare-shared {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: rgba(46, 117, 182, 0.08);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border-left: 3px solid var(--ew-secondary);
+}
+
+[data-theme="dark"] .ew-modal {
+  background: #1a1a2e;
+}
+
+[data-theme="dark"] .ew-compare-col {
+  border-color: #2d2d44;
+}

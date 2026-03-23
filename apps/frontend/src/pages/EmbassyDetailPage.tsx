@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LineChart,
   Line,
@@ -19,6 +20,8 @@ import {
 } from "../hooks/useEmbassies";
 import { useWatchlist, useAddToWatchlist, useRemoveFromWatchlist } from "../hooks/useUser";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
+import { useAuthStore } from "../stores/useAuthStore";
+import api from "../services/api";
 import type { ThreatAssessment, RawEvent } from "../hooks/useEmbassies";
 
 const THREAT_COLORS: Record<string, string> = {
@@ -57,8 +60,19 @@ const REGION_LABELS: Record<string, string> = {
 const LIGHT_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
+function confidenceColor(c: number): string {
+  if (c >= 0.8) return "#2e8540";
+  if (c >= 0.5) return "#e8a820";
+  return "#d83933";
+}
+
+function isAssessmentStale(assessedAt: string): boolean {
+  return Date.now() - new Date(assessedAt).getTime() > 24 * 3600_000;
+}
+
 export default function EmbassyDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { data: embassy, isLoading } = useEmbassy(id);
   const { data: assessmentsData } = useEmbassyAssessments(id);
   const [eventSeverity, setEventSeverity] = useState("");
@@ -73,6 +87,18 @@ export default function EmbassyDetailPage() {
   const removeFromWatchlist = useRemoveFromWatchlist();
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [rawExpanded, setRawExpanded] = useState(false);
+  const [activeFactor, setActiveFactor] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "ADMIN";
+
+  const requestAnalysis = useMutation({
+    mutationFn: () =>
+      api.post(`/api/threats/${id}/analyze`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["embassy", id] });
+      queryClient.invalidateQueries({ queryKey: ["embassyAssessments", id] });
+    },
+  });
 
   const isWatched = watchlist?.some((e) => e.id === id) ?? false;
 
@@ -153,13 +179,38 @@ export default function EmbassyDetailPage() {
       <div className="ew-detail-grid">
         {/* 2. THREAT ASSESSMENT */}
         <div className="ew-card ew-detail-assessment">
-          <h2>Threat Assessment</h2>
+          <div className="ew-detail-assessment__header">
+            <h2>Threat Assessment</h2>
+            {isAdmin && (
+              <button
+                className="ew-admin-btn"
+                onClick={() => requestAnalysis.mutate()}
+                disabled={requestAnalysis.isPending}
+              >
+                {requestAnalysis.isPending
+                  ? "Analyzing... (est. 10-30s)"
+                  : "Request New Analysis"}
+              </button>
+            )}
+          </div>
+
+          {/* Stale warning */}
+          {assessment && isAssessmentStale(assessment.assessedAt) && (
+            <div className="ew-alert ew-alert--warning">
+              This assessment is over 24 hours old. Consider requesting a new analysis.
+            </div>
+          )}
+
           {assessment ? (
             <>
+              {/* Summary with paragraph formatting */}
               <div className="ew-detail-assessment__summary">
-                {assessment.summary}
+                {assessment.summary.split("\n\n").map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
               </div>
 
+              {/* Confidence bar with color coding */}
               <div className="ew-detail-assessment__confidence">
                 <label>
                   Confidence: {Math.round(assessment.confidence * 100)}%
@@ -169,27 +220,35 @@ export default function EmbassyDetailPage() {
                     className="ew-confidence-bar__fill"
                     style={{
                       width: `${assessment.confidence * 100}%`,
-                      background: threatColor,
+                      background: confidenceColor(assessment.confidence),
                     }}
                   />
                 </div>
               </div>
 
+              {/* Interactive key factors */}
               {assessment.keyFactors.length > 0 && (
                 <div className="ew-detail-assessment__factors">
                   <h3>Key Factors</h3>
                   <div className="ew-chip-list">
                     {assessment.keyFactors.map((f, i) => (
-                      <span key={i} className="ew-chip">
+                      <button
+                        key={i}
+                        className={`ew-chip ew-chip--interactive${activeFactor === f ? " ew-chip--active" : ""}`}
+                        onClick={() =>
+                          setActiveFactor(activeFactor === f ? null : f)
+                        }
+                      >
                         {f}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 </div>
               )}
 
+              {/* Recommendations as USWDS alert box */}
               {assessment.recommendations.length > 0 && (
-                <div className="ew-detail-assessment__recs">
+                <div className="ew-alert ew-alert--info ew-detail-assessment__recs">
                   <h3>Recommendations</h3>
                   <ol>
                     {assessment.recommendations.map((r, i) => (
@@ -199,19 +258,20 @@ export default function EmbassyDetailPage() {
                 </div>
               )}
 
-              {assessment.aiModelUsed && (
-                <div className="ew-detail-assessment__model">
-                  AI Model: {assessment.aiModelUsed}
-                </div>
-              )}
+              {/* Model info footer */}
+              <div className="ew-detail-assessment__model">
+                Analysis by <strong>{assessment.aiModelUsed}</strong> at{" "}
+                {new Date(assessment.assessedAt).toLocaleString()}
+              </div>
 
+              {/* Collapsible detailed reasoning */}
               {assessment.rawAiResponse && (
                 <div className="ew-detail-assessment__raw">
                   <button
                     className="ew-detail-assessment__raw-toggle"
                     onClick={() => setRawExpanded(!rawExpanded)}
                   >
-                    {rawExpanded ? "Hide" : "Show"} Raw Analysis
+                    {rawExpanded ? "Hide" : "Show"} Detailed Reasoning
                   </button>
                   {rawExpanded && (
                     <pre className="ew-detail-assessment__raw-content">
@@ -222,7 +282,20 @@ export default function EmbassyDetailPage() {
               )}
             </>
           ) : (
-            <p className="ew-empty">No threat assessment available yet.</p>
+            <div className="ew-detail-assessment__empty">
+              <p className="ew-empty">No threat assessment available yet.</p>
+              {isAdmin && (
+                <button
+                  className="ew-admin-btn ew-admin-btn--primary"
+                  onClick={() => requestAnalysis.mutate()}
+                  disabled={requestAnalysis.isPending}
+                >
+                  {requestAnalysis.isPending
+                    ? "Running Analysis..."
+                    : "Run Initial Analysis"}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -293,6 +366,17 @@ export default function EmbassyDetailPage() {
                       key={ev.id}
                       event={ev}
                       expanded={expandedEvent === ev.id}
+                      highlighted={
+                        activeFactor
+                          ? ev.title
+                              .toLowerCase()
+                              .includes(activeFactor.toLowerCase()) ||
+                            ev.category
+                              ?.toLowerCase()
+                              .includes(activeFactor.toLowerCase()) ||
+                            false
+                          : false
+                      }
                       onToggle={() =>
                         setExpandedEvent(expandedEvent === ev.id ? null : ev.id)
                       }
@@ -315,10 +399,12 @@ export default function EmbassyDetailPage() {
 function EventRow({
   event,
   expanded,
+  highlighted,
   onToggle,
 }: {
   event: RawEvent;
   expanded: boolean;
+  highlighted: boolean;
   onToggle: () => void;
 }) {
   const severityColor =
@@ -329,7 +415,7 @@ function EventRow({
         : "#71767a";
   return (
     <>
-      <tr className="ew-detail-events__row" onClick={onToggle}>
+      <tr className={`ew-detail-events__row${highlighted ? " ew-detail-events__row--highlighted" : ""}`} onClick={onToggle}>
         <td>{new Date(event.eventDate).toLocaleDateString()}</td>
         <td>{event.dataSource?.name ?? event.dataSource?.type ?? "\u2014"}</td>
         <td>{event.category ?? "\u2014"}</td>
