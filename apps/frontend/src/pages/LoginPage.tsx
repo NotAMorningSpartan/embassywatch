@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+import { useLogin } from "../hooks/useAuth";
+import { useAuthStore } from "../stores/useAuthStore";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -9,12 +11,16 @@ interface FieldErrors {
 }
 
 export default function LoginPage() {
-  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const login = useLogin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [loading, setLoading] = useState(false);
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   function validateEmail(value: string): string | undefined {
     if (!value) return "Email is required.";
@@ -42,17 +48,21 @@ export default function LoginPage() {
     setErrors(next);
     if (emailErr || passwordErr) return;
 
-    setLoading(true);
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1000);
+    login.mutate({ email, password });
   }
+
+  const apiError =
+    login.error && "response" in login.error
+      ? (login.error as { response?: { data?: { error?: string } } }).response
+          ?.data?.error
+      : login.error?.message;
 
   return (
     <div className="ew-login">
       <div className="ew-login__card">
         <h1>EmbassyWatch</h1>
         <p>Sign in to access the monitoring platform.</p>
+        {apiError && <div className="ew-login__error">{apiError}</div>}
         <form onSubmit={handleSubmit} noValidate>
           <div className="ew-login__field">
             <label htmlFor="email">Email address</label>
@@ -92,8 +102,12 @@ export default function LoginPage() {
             />
             Remember me
           </label>
-          <button type="submit" className="ew-login__btn" disabled={loading}>
-            {loading ? (
+          <button
+            type="submit"
+            className="ew-login__btn"
+            disabled={login.isPending}
+          >
+            {login.isPending ? (
               <>
                 <span className="ew-login__spinner" />
                 Signing in...
