@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useEmbassies, useEmbassyStats } from "../hooks/useEmbassies";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import EmbassyMap from "../components/EmbassyMap";
+import api from "../services/api";
+import type { Embassy, ThreatAssessment } from "../hooks/useEmbassies";
 
 const REGIONS = [
   { value: "", label: "All Regions" },
@@ -52,11 +55,28 @@ export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useEmbassyStats();
 
   const embassies = embassyData?.data ?? [];
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
 
   const filteredEmbassies = useMemo(() => {
     if (!regionFilter) return embassies;
     return embassies.filter((e) => e.region === regionFilter);
   }, [embassies, regionFilter]);
+
+  const highSevere = useMemo(
+    () =>
+      filteredEmbassies.filter(
+        (e) =>
+          e.currentThreatLevel === "HIGH" || e.currentThreatLevel === "SEVERE",
+      ),
+    [filteredEmbassies],
+  );
+
+  const toggleCompare = (id: string) => {
+    setCompareIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 3 ? [...prev, id] : prev,
+    );
+  };
 
   return (
     <>
@@ -117,9 +137,50 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Threat Summary — HIGH/SEVERE embassies */}
+      {highSevere.length > 0 && (
+        <div className="ew-threat-summary">
+          <h2>Threat Alerts</h2>
+          <div className="ew-threat-summary__list">
+            {highSevere.map((embassy) => (
+              <Link
+                key={embassy.id}
+                to={`/embassies/${embassy.id}`}
+                className="ew-threat-summary__item"
+              >
+                <span
+                  className="ew-threat-summary__badge"
+                  style={{
+                    background: THREAT_COLORS[embassy.currentThreatLevel],
+                  }}
+                >
+                  {THREAT_LABELS[embassy.currentThreatLevel]}
+                </span>
+                <div className="ew-threat-summary__info">
+                  <strong>{embassy.name}</strong>
+                  <span>
+                    {embassy.city}, {embassy.country}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Assessments feed */}
       <div className="ew-recent-assessments">
-        <h2>Recent Assessments</h2>
+        <div className="ew-recent-assessments__header">
+          <h2>Recent Assessments</h2>
+          {compareIds.length > 0 && (
+            <button
+              className="ew-admin-btn"
+              onClick={() => setShowCompare(true)}
+            >
+              Compare ({compareIds.length})
+            </button>
+          )}
+        </div>
         {embassiesLoading ? (
           <p>Loading...</p>
         ) : filteredEmbassies.length === 0 ? (
@@ -127,38 +188,159 @@ export default function DashboardPage() {
         ) : (
           <div className="ew-recent-assessments__grid">
             {filteredEmbassies.slice(0, 10).map((embassy) => (
-              <Link
-                key={embassy.id}
-                to={`/embassies/${embassy.id}`}
-                className="ew-assessment-card"
-              >
-                <div className="ew-assessment-card__header">
-                  <span className="ew-assessment-card__name">
-                    {embassy.name}
-                  </span>
-                  <span
-                    className="ew-assessment-card__threat"
-                    style={{
-                      background: THREAT_COLORS[embassy.currentThreatLevel],
-                    }}
-                  >
-                    {THREAT_LABELS[embassy.currentThreatLevel] ?? embassy.currentThreatLevel}
-                  </span>
-                </div>
-                <div className="ew-assessment-card__meta">
-                  {embassy.city}, {embassy.country}
-                </div>
-                <div className="ew-assessment-card__summary">
-                  Threat level: {THREAT_LABELS[embassy.currentThreatLevel] ?? embassy.currentThreatLevel}
-                  {embassy.lastAssessedAt
-                    ? ` — assessed ${new Date(embassy.lastAssessedAt).toLocaleDateString()}`
-                    : " — no assessment yet"}
-                </div>
-              </Link>
+              <div key={embassy.id} className="ew-assessment-card__wrap">
+                <Link
+                  to={`/embassies/${embassy.id}`}
+                  className="ew-assessment-card"
+                >
+                  <div className="ew-assessment-card__header">
+                    <span className="ew-assessment-card__name">
+                      {embassy.name}
+                    </span>
+                    <span
+                      className="ew-assessment-card__threat"
+                      style={{
+                        background: THREAT_COLORS[embassy.currentThreatLevel],
+                      }}
+                    >
+                      {THREAT_LABELS[embassy.currentThreatLevel] ?? embassy.currentThreatLevel}
+                    </span>
+                  </div>
+                  <div className="ew-assessment-card__meta">
+                    {embassy.city}, {embassy.country}
+                  </div>
+                  <div className="ew-assessment-card__summary">
+                    Threat level: {THREAT_LABELS[embassy.currentThreatLevel] ?? embassy.currentThreatLevel}
+                    {embassy.lastAssessedAt
+                      ? ` — assessed ${new Date(embassy.lastAssessedAt).toLocaleDateString()}`
+                      : " — no assessment yet"}
+                  </div>
+                </Link>
+                <label className="ew-assessment-card__compare">
+                  <input
+                    type="checkbox"
+                    checked={compareIds.includes(embassy.id)}
+                    onChange={() => toggleCompare(embassy.id)}
+                  />
+                  Compare
+                </label>
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Comparison modal */}
+      {showCompare && compareIds.length > 0 && (
+        <CompareModal
+          embassyIds={compareIds}
+          embassies={embassies}
+          onClose={() => setShowCompare(false)}
+        />
+      )}
     </>
+  );
+}
+
+/* ---- Comparison Modal ---- */
+
+function CompareModal({
+  embassyIds,
+  embassies,
+  onClose,
+}: {
+  embassyIds: string[];
+  embassies: Embassy[];
+  onClose: () => void;
+}) {
+  // Fetch assessments for each embassy
+  const assessments = embassyIds.map((id) => {
+    const { data } = useQuery({
+      queryKey: ["threats", id, "latest"],
+      queryFn: () =>
+        api.get<ThreatAssessment>(`/api/threats/${id}/latest`).then((r) => r.data),
+    });
+    return { embassy: embassies.find((e) => e.id === id), assessment: data };
+  });
+
+  // Find shared vs unique key factors
+  const allFactors = assessments
+    .map((a) => a.assessment?.keyFactors ?? [])
+    .filter((f) => f.length > 0);
+  const sharedFactors =
+    allFactors.length > 1
+      ? allFactors[0].filter((f) =>
+          allFactors.slice(1).every((other) =>
+            other.some((o) => o.toLowerCase().includes(f.toLowerCase())),
+          ),
+        )
+      : [];
+
+  return (
+    <div className="ew-modal-overlay" onClick={onClose}>
+      <div className="ew-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ew-modal__header">
+          <h2>Embassy Comparison</h2>
+          <button className="ew-modal__close" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <div className="ew-compare-grid">
+          {assessments.map(({ embassy, assessment }) =>
+            embassy ? (
+              <div key={embassy.id} className="ew-compare-col">
+                <h3>{embassy.name}</h3>
+                <p className="ew-compare-col__location">
+                  {embassy.city}, {embassy.country}
+                </p>
+                <span
+                  className="ew-compare-col__threat"
+                  style={{
+                    background:
+                      THREAT_COLORS[embassy.currentThreatLevel] ?? "#71767a",
+                  }}
+                >
+                  {THREAT_LABELS[embassy.currentThreatLevel] ??
+                    embassy.currentThreatLevel}
+                </span>
+                {assessment ? (
+                  <>
+                    <div className="ew-compare-col__confidence">
+                      Confidence: {Math.round(assessment.confidence * 100)}%
+                    </div>
+                    <div className="ew-compare-col__factors">
+                      <strong>Key Factors:</strong>
+                      <ul>
+                        {assessment.keyFactors.map((f, i) => (
+                          <li
+                            key={i}
+                            className={
+                              sharedFactors.some((s) =>
+                                f.toLowerCase().includes(s.toLowerCase()),
+                              )
+                                ? "ew-compare-col__shared"
+                                : ""
+                            }
+                          >
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                ) : (
+                  <p className="ew-empty">No assessment data</p>
+                )}
+              </div>
+            ) : null,
+          )}
+        </div>
+        {sharedFactors.length > 0 && (
+          <div className="ew-compare-shared">
+            <strong>Shared Factors:</strong> {sharedFactors.join(", ")}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
