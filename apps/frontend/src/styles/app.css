@@ -70,6 +70,17 @@
   background: #2d2d44;
 }
 
+[data-theme="dark"] .ew-header__logo,
+[data-theme="dark"] .ew-header__nav-link {
+  color: #e0e0e8;
+}
+
+[data-theme="dark"] .ew-sidebar__link.active {
+  color: #4a9ae5;
+  background: rgba(74, 154, 229, 0.1);
+  border-right-color: #4a9ae5;
+}
+
 [data-theme="dark"] .ew-content h1 {
   color: #4a9ae5;
 }
@@ -355,7 +366,6 @@ body {
   color: var(--ew-gray);
   display: flex;
   align-items: center;
-  gap: 6px;
   background: var(--ew-white);
   border-bottom: 1px solid var(--ew-gray-light);
 }
@@ -370,7 +380,8 @@ body {
 }
 
 .ew-breadcrumb__sep {
-  color: var(--ew-gray-light);
+  color: var(--ew-gray);
+  margin: 0 6px;
 }
 
 .ew-content {
