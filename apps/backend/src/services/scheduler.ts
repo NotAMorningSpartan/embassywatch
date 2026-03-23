@@ -3,6 +3,7 @@ import { DataAggregationService } from "./DataAggregationService.js";
 import { NewsAPIAdapter } from "./adapters/NewsAPIAdapter.js";
 import { WeatherAdapter } from "./adapters/WeatherAdapter.js";
 import { TravelAdvisoryAdapter } from "./adapters/TravelAdvisoryAdapter.js";
+import { assessAll } from "./ThreatAnalysisService.js";
 
 let service: DataAggregationService | null = null;
 
@@ -34,6 +35,22 @@ export function startScheduler(): void {
     }
   });
 
+  // Threat analysis schedule (default: every 6 hours)
+  const analysisCron = process.env.ANALYSIS_CRON ?? "0 */6 * * *";
+  console.log(`[Scheduler] Threat analysis scheduled: "${analysisCron}"`);
+
+  cron.schedule(analysisCron, async () => {
+    console.log(`[Scheduler] Triggering threat analysis at ${new Date().toISOString()}`);
+    try {
+      const result = await assessAll();
+      console.log(
+        `[Scheduler] Analysis complete: ${result.succeeded}/${result.total} succeeded`,
+      );
+    } catch (err) {
+      console.error("[Scheduler] Analysis failed:", err);
+    }
+  });
+
   // Run once on startup after a short delay
   const runOnStartup = process.env.AGGREGATE_ON_STARTUP !== "false";
   if (runOnStartup) {
@@ -41,8 +58,13 @@ export function startScheduler(): void {
       console.log("[Scheduler] Running initial aggregation...");
       try {
         await aggregationService.runAll();
+        console.log("[Scheduler] Running initial threat analysis...");
+        const analysisResult = await assessAll();
+        console.log(
+          `[Scheduler] Initial analysis: ${analysisResult.succeeded}/${analysisResult.total} succeeded`,
+        );
       } catch (err) {
-        console.error("[Scheduler] Initial aggregation failed:", err);
+        console.error("[Scheduler] Initial run failed:", err);
       }
     }, 3000);
   }
