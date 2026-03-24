@@ -15,6 +15,79 @@ const embassyRepo = () => AppDataSource.getRepository(Embassy);
 const assessmentRepo = () => AppDataSource.getRepository(ThreatAssessment);
 const eventRepo = () => AppDataSource.getRepository(RawEvent);
 
+// Country name → ISO 3166-1 alpha-3 mapping
+const COUNTRY_ISO: Record<string, string> = {
+  Afghanistan: "AFG", Argentina: "ARG", Australia: "AUS", Bangladesh: "BGD",
+  Brazil: "BRA", Canada: "CAN", Chile: "CHL", China: "CHN", Colombia: "COL",
+  Cuba: "CUB", "Democratic Republic of the Congo": "COD", Egypt: "EGY",
+  Ethiopia: "ETH", France: "FRA", Germany: "DEU", Ghana: "GHA", India: "IND",
+  Indonesia: "IDN", Iraq: "IRQ", Israel: "ISR", Italy: "ITA", Japan: "JPN",
+  Jordan: "JOR", Kazakhstan: "KAZ", Kenya: "KEN", Kuwait: "KWT",
+  Lebanon: "LBN", Mexico: "MEX", Nepal: "NPL", "New Zealand": "NZL",
+  Nigeria: "NGA", Pakistan: "PAK", Panama: "PAN", Peru: "PER",
+  Philippines: "PHL", Poland: "POL", Qatar: "QAT", Russia: "RUS",
+  "Saudi Arabia": "SAU", Senegal: "SEN", "South Africa": "ZAF",
+  "South Korea": "KOR", Spain: "ESP", "Sri Lanka": "LKA", Tanzania: "TZA",
+  Thailand: "THA", Turkey: "TUR", Ukraine: "UKR",
+  "United Arab Emirates": "ARE", "United Kingdom": "GBR", Uzbekistan: "UZB",
+  Vietnam: "VNM",
+};
+
+const THREAT_SCORE: Record<string, number> = {
+  LOW: 1, GUARDED: 2, ELEVATED: 3, HIGH: 4, SEVERE: 5,
+};
+
+const SCORE_TO_LEVEL = ["LOW", "GUARDED", "ELEVATED", "HIGH", "SEVERE"];
+
+// GET /api/embassies/threat-by-country
+router.get("/threat-by-country", async (_req, res) => {
+  const embassies = await embassyRepo().find();
+
+  const byCountry: Record<string, {
+    countryCode: string;
+    countryName: string;
+    embassyCount: number;
+    highestThreatScore: number;
+    highestThreatLevel: string;
+    totalScore: number;
+  }> = {};
+
+  for (const e of embassies) {
+    const code = COUNTRY_ISO[e.country];
+    if (!code) continue;
+
+    if (!byCountry[code]) {
+      byCountry[code] = {
+        countryCode: code,
+        countryName: e.country,
+        embassyCount: 0,
+        highestThreatScore: 0,
+        highestThreatLevel: "LOW",
+        totalScore: 0,
+      };
+    }
+
+    const score = THREAT_SCORE[e.currentThreatLevel] ?? 1;
+    byCountry[code].embassyCount++;
+    byCountry[code].totalScore += score;
+    if (score > byCountry[code].highestThreatScore) {
+      byCountry[code].highestThreatScore = score;
+      byCountry[code].highestThreatLevel = e.currentThreatLevel;
+    }
+  }
+
+  const result = Object.values(byCountry).map((c) => ({
+    countryCode: c.countryCode,
+    countryName: c.countryName,
+    aggregatedThreatLevel: c.highestThreatLevel,
+    embassyCount: c.embassyCount,
+    highestThreatLevel: c.highestThreatLevel,
+    averageThreatScore: Math.round((c.totalScore / c.embassyCount) * 100) / 100,
+  }));
+
+  res.json(result);
+});
+
 // GET /api/embassies/stats — must be before /:id
 router.get("/stats", async (_req, res) => {
   const repo = embassyRepo();

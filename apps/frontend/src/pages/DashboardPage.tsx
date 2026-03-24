@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useEmbassies, useEmbassyStats } from "../hooks/useEmbassies";
+import { useEmbassies, useEmbassyStats, useThreatByCountry } from "../hooks/useEmbassies";
 import { useCurrentUser } from "../hooks/useUser";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import EmbassyMap from "../components/EmbassyMap";
@@ -57,10 +57,13 @@ export default function DashboardPage() {
     region: regionFilter || undefined,
   });
   const { data: stats, isLoading: statsLoading } = useEmbassyStats();
+  const { data: threatByCountry } = useThreatByCountry();
 
   const embassies = embassyData?.data ?? [];
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [showMarkers, setShowMarkers] = useState(true);
+  const [showHeatMap, setShowHeatMap] = useState(false);
 
   const filteredEmbassies = useMemo(() => {
     if (!regionFilter) return embassies;
@@ -111,7 +114,17 @@ export default function DashboardPage() {
         {embassiesLoading ? (
           <div className="ew-dashboard-map__loading">Loading map data...</div>
         ) : (
-          <EmbassyMap embassies={filteredEmbassies} darkMode={theme === "dark"} region={regionFilter} mapStyle={mapStyle} />
+          <EmbassyMap
+            embassies={filteredEmbassies}
+            darkMode={theme === "dark"}
+            region={regionFilter}
+            mapStyle={mapStyle}
+            threatByCountry={threatByCountry}
+            showMarkers={showMarkers}
+            showHeatMap={showHeatMap}
+            onToggleMarkers={setShowMarkers}
+            onToggleHeatMap={setShowHeatMap}
+          />
         )}
       </div>
 
