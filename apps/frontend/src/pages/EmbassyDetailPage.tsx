@@ -107,6 +107,32 @@ export default function EmbassyDetailPage() {
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [rawExpanded, setRawExpanded] = useState(false);
   const [activeFactor, setActiveFactor] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!id) return;
+    setExportLoading(true);
+    setShowExportMenu(false);
+    try {
+      const response = await api.get(`/api/embassies/${id}/report?format=pdf`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = embassy?.name?.replace(/[^a-zA-Z0-9]/g, "_") ?? "embassy";
+      a.download = `EmbassyWatch_${safeName}_${new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate report:", err);
+    } finally {
+      setExportLoading(false);
+    }
+  };
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "ADMIN";
 
@@ -192,6 +218,44 @@ export default function EmbassyDetailPage() {
           >
             {isWatched ? "\u2605" : "\u2606"}
           </button>
+          <div className="ew-export-dropdown">
+            <button
+              className="ew-btn ew-btn--outline ew-export-btn"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={exportLoading}
+            >
+              {exportLoading ? (
+                <>
+                  <span className="ew-spinner-sm" /> Generating...
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export Report ▾
+                </>
+              )}
+            </button>
+            {showExportMenu && (
+              <div className="ew-export-dropdown__menu">
+                <button
+                  className="ew-export-dropdown__item"
+                  onClick={handleExportPdf}
+                >
+                  <span className="ew-export-dropdown__check">✓</span> PDF
+                </button>
+                <button className="ew-export-dropdown__item" disabled>
+                  Word Document <span className="ew-export-dropdown__soon">Coming Soon</span>
+                </button>
+                <button className="ew-export-dropdown__item" disabled>
+                  JSON <span className="ew-export-dropdown__soon">Coming Soon</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
