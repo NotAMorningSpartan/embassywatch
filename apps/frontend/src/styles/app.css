@@ -1650,6 +1650,31 @@ body {
   overflow-y: auto;
 }
 
+.ew-admin-test-result--success {
+  background: rgba(46, 133, 64, 0.08);
+  border-left: 3px solid #2e8540;
+  color: #2e8540;
+}
+
+.ew-admin-test-result--error {
+  background: rgba(216, 57, 51, 0.08);
+  border-left: 3px solid #d83933;
+  color: #d83933;
+}
+
+.ew-admin-form-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ew-gray);
+  margin-top: 4px;
+}
+
+.ew-admin-divider {
+  border: none;
+  border-top: 1px solid var(--ew-gray-light);
+  margin: 16px 0;
+}
+
 /* Pagination */
 .ew-admin-pagination {
   display: flex;
