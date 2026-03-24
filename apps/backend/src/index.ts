@@ -29,12 +29,12 @@ app.get("/healthz", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api", reportRoutes);
+app.use("/api/reports", reportRoutes);
 app.use("/api/embassies", embassyRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/threats", threatRoutes);
-app.use("/api", reportRoutes);
-app.use("/api/reports", reportRoutes);
 
 app.use(errorHandler);
 
