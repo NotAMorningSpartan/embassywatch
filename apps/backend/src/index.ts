@@ -21,7 +21,7 @@ const port = process.env.PORT || 4000;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-app.use(rateLimit());
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 }));
 
 app.get("/healthz", (_req, res) => {
   res.json({ status: "ok" });

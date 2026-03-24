@@ -47,7 +47,7 @@ export function generateMockWeather(count: number = 5): RawEventData[] {
       eventDate: new Date(Date.now() - hoursAgo * 3600_000),
       severity: weather.severity,
       category: "Weather",
-      sourceUrl: `https://openweathermap.org/city?q=${encodeURIComponent(loc.city + "," + loc.country)}`,
+      sourceUrl: `https://weather.com/weather/today/l/${encodeURIComponent(loc.city + "," + loc.country)}`,
       metadata: { source: "OpenWeatherMap", city: loc.city, country: loc.country, mock: true },
       country: loc.country,
     });

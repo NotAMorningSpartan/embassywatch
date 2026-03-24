@@ -37,6 +37,13 @@ interface ActivityItem {
   source: string;
   severity: string;
   timestamp: string;
+  embassyId: string | null;
+  embassyName: string | null;
+  matchedBy: string | null;
+  aiReasoning: string | null;
+  aiConfidence: number | null;
+  aiRelevanceToEmbassy: string | null;
+  aiKeyEntities: string[] | null;
 }
 
 /* ---- Hooks ---- */
@@ -137,8 +144,13 @@ export default function AdminPage() {
 function HealthSection() {
   const { data, isLoading, refetch, isFetching } = useHealth();
 
-  const statusColor = (s: string) =>
-    s === "healthy" ? "#2e8540" : s === "degraded" ? "#e8a820" : "#d83933";
+  const statusColor = (s: string) => {
+    const lower = s.toLowerCase();
+    return lower === "healthy" ? "#2e8540"
+      : lower === "mock" ? "#2e75b6"
+      : lower === "degraded" || lower === "not_configured" ? "#e8a820"
+      : "#d83933";
+  };
 
   if (isLoading) return <p>Loading health data...</p>;
 
@@ -866,6 +878,7 @@ function ConfigSection() {
 function ActivitySection() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useActivity(page);
+  const [expandedReasoning, setExpandedReasoning] = useState<string | null>(null);
 
   const severityColor = (s: string) =>
     s === "CRITICAL" ? "#d83933" : s === "WARNING" ? "#e87722" : "#71767a";
@@ -882,25 +895,136 @@ function ActivitySection() {
           <tr>
             <th>Time</th>
             <th>Source</th>
+            <th>Embassy</th>
+            <th>Method</th>
             <th>Severity</th>
             <th>Title</th>
           </tr>
         </thead>
         <tbody>
           {(data?.data ?? []).map((item) => (
-            <tr key={item.id}>
-              <td>{new Date(item.timestamp).toLocaleString()}</td>
-              <td>{item.source}</td>
-              <td>
-                <span
-                  className="ew-severity-badge"
-                  style={{ background: severityColor(item.severity) }}
-                >
-                  {item.severity}
-                </span>
-              </td>
-              <td>{item.title}</td>
-            </tr>
+            <Fragment key={item.id}>
+              <tr>
+                <td>{new Date(item.timestamp).toLocaleString()}</td>
+                <td>{item.source}</td>
+                <td>
+                  {item.embassyId && item.embassyName ? (
+                    <a
+                      href={`/embassies/${item.embassyId}`}
+                      className="ew-admin-embassy-link"
+                    >
+                      {item.embassyName}
+                    </a>
+                  ) : (
+                    <span className="ew-admin-unmatched">Unmatched</span>
+                  )}
+                </td>
+                <td>
+                  {item.matchedBy === "ai" ? (
+                    <button
+                      className="ew-admin-method-badge ew-admin-method-badge--ai"
+                      onClick={() =>
+                        setExpandedReasoning(
+                          expandedReasoning === item.id ? null : item.id,
+                        )
+                      }
+                      title="Click to see AI reasoning"
+                    >
+                      AI
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d={expandedReasoning === item.id ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
+                      </svg>
+                    </button>
+                  ) : item.matchedBy === "ai-unmatched" ? (
+                    <button
+                      className="ew-admin-method-badge ew-admin-method-badge--failed"
+                      onClick={() =>
+                        setExpandedReasoning(
+                          expandedReasoning === item.id ? null : item.id,
+                        )
+                      }
+                      title="Click to see why AI couldn't match"
+                    >
+                      Failed
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d={expandedReasoning === item.id ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
+                      </svg>
+                    </button>
+                  ) : item.matchedBy === "keyword" ? (
+                    <span className="ew-admin-method-badge ew-admin-method-badge--keyword">
+                      Keyword
+                    </span>
+                  ) : item.embassyId ? (
+                    <span className="ew-admin-method-badge ew-admin-method-badge--direct">
+                      Direct
+                    </span>
+                  ) : (
+                    <span className="ew-admin-method-badge ew-admin-method-badge--none">
+                      —
+                    </span>
+                  )}
+                </td>
+                <td>
+                  <span
+                    className="ew-severity-badge"
+                    style={{ background: severityColor(item.severity) }}
+                  >
+                    {item.severity}
+                  </span>
+                </td>
+                <td>{item.title}</td>
+              </tr>
+              {expandedReasoning === item.id && (item.aiReasoning || item.matchedBy === "ai-unmatched") && (
+                <tr className="ew-admin-table__expanded">
+                  <td colSpan={6}>
+                    <div className="ew-admin-ai-reasoning">
+                      <div className="ew-admin-ai-reasoning__header">
+                        <strong>AI Classification</strong>
+                        {item.aiConfidence != null && (
+                          <span className="ew-admin-ai-confidence">
+                            <span
+                              className="ew-admin-ai-confidence__bar"
+                              style={{
+                                width: `${Math.round(item.aiConfidence * 100)}%`,
+                                background:
+                                  item.aiConfidence >= 0.8
+                                    ? "#2e8540"
+                                    : item.aiConfidence >= 0.5
+                                      ? "#e8a820"
+                                      : "#d83933",
+                              }}
+                            />
+                            <span className="ew-admin-ai-confidence__label">
+                              {Math.round(item.aiConfidence * 100)}% confidence
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="ew-admin-ai-reasoning__row">
+                        <span className="ew-admin-ai-reasoning__label">Reasoning</span>
+                        <span>{item.aiReasoning}</span>
+                      </div>
+                      {item.aiRelevanceToEmbassy && (
+                        <div className="ew-admin-ai-reasoning__row">
+                          <span className="ew-admin-ai-reasoning__label">Embassy Relevance</span>
+                          <span>{item.aiRelevanceToEmbassy}</span>
+                        </div>
+                      )}
+                      {item.aiKeyEntities && item.aiKeyEntities.length > 0 && (
+                        <div className="ew-admin-ai-reasoning__row">
+                          <span className="ew-admin-ai-reasoning__label">Key Entities</span>
+                          <span className="ew-admin-ai-reasoning__entities">
+                            {item.aiKeyEntities.map((e, i) => (
+                              <span key={i} className="ew-admin-ai-entity-tag">{e}</span>
+                            ))}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
