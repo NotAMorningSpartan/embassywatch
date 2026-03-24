@@ -12,6 +12,7 @@ import userRoutes from "./routes/users.js";
 import adminRoutes from "./routes/admin.js";
 import threatRoutes from "./routes/threats.js";
 import reportRoutes from "./routes/reports.js";
+import aiRoutes from "./routes/ai.js";
 import { startScheduler } from "./services/scheduler.js";
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use("/api/embassies", embassyRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/threats", threatRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.use(errorHandler);
 

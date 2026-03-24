@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import { useAuthStore } from "../stores/useAuthStore";
+import { useAIPanelStore } from "../stores/useAIPanelStore";
 import { useLogout } from "../hooks/useAuth";
+import AIPanel from "./AIPanel";
 
 const SidebarIcons = {
   dashboard: (
@@ -65,6 +67,43 @@ export default function USWDSLayout() {
   const { theme, toggleTheme } = usePreferencesStore();
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
+  const { isOpen: aiPanelOpen, togglePanel: toggleAIPanel, setPageContext } = useAIPanelStore();
+
+  // Update AI panel page context based on current route
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith("/embassies/") && path.split("/").length >= 3) {
+      const embassyId = path.split("/")[2];
+      if (embassyId && embassyId !== "") {
+        setPageContext({ type: "embassy-detail", embassyId });
+      }
+    } else if (path === "/watchlist") {
+      setPageContext({ type: "watchlist" });
+    } else if (path === "/dashboard") {
+      setPageContext({ type: "dashboard" });
+    } else if (path === "/embassies") {
+      setPageContext({ type: "embassies" });
+    } else {
+      setPageContext({ type: "other" });
+    }
+  }, [location.pathname, setPageContext]);
+
+  // Keyboard shortcut: "/" to toggle AI panel
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (
+        e.key === "/" &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes(
+          (e.target as HTMLElement).tagName,
+        )
+      ) {
+        e.preventDefault();
+        toggleAIPanel();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [toggleAIPanel]);
 
   const initials = user
     ? user.displayName
@@ -140,6 +179,18 @@ export default function USWDSLayout() {
             </ul>
           </nav>
 
+          {/* Ask AI button */}
+          <button
+            className={`ew-ai-trigger${aiPanelOpen ? " ew-ai-trigger--active" : ""}`}
+            onClick={toggleAIPanel}
+            title="Ask EmbassyWatch AI (press /)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2L9 8.5 2 9.5l5 5-1 7 6-3.5 6 3.5-1-7 5-5-7-1z" />
+            </svg>
+            Ask AI
+          </button>
+
           <div className="ew-user-menu">
             <button
               className="ew-user-menu__trigger"
@@ -200,7 +251,7 @@ export default function USWDSLayout() {
       </header>
 
       {/* Body */}
-      <div className="ew-layout">
+      <div className={`ew-layout${aiPanelOpen ? " ew-layout--ai-open" : ""}`}>
         {/* Sidebar */}
         <aside
           className={`ew-sidebar ${sidebarCollapsed ? "ew-sidebar--collapsed" : ""}`}
@@ -301,6 +352,9 @@ export default function USWDSLayout() {
           </a>
         </div>
       </footer>
+
+      {/* AI Panel */}
+      <AIPanel />
     </>
   );
 }
