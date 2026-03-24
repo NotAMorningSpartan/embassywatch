@@ -39,41 +39,60 @@ function buildPrompt(
 ): string {
   const eventSummary = events
     .slice(0, 20)
-    .map(
-      (e) =>
-        `- [${e.severity}] ${e.title} (${new Date(e.eventDate).toISOString().slice(0, 10)})${e.category ? ` [${e.category}]` : ""}`,
-    )
+    .map((e) => {
+      const date = new Date(e.eventDate).toISOString().slice(0, 10);
+      const content = e.content ? `\n    Detail: ${e.content.slice(0, 200)}` : "";
+      return `- [${e.severity}] [${e.category ?? "General"}] ${e.title} (${date})${content}`;
+    })
     .join("\n");
 
-  return `You are a threat assessment analyst for U.S. embassy security operations.
+  // Separate out travel advisories for emphasis
+  const advisoryEvents = events.filter((e) => e.category === "Travel Advisory");
+  const advisorySummary = advisoryEvents.length > 0
+    ? `\nCURRENT U.S. STATE DEPARTMENT TRAVEL ADVISORY:\n${advisoryEvents.map((e) => `  ${e.title}\n  ${e.content?.slice(0, 300) ?? ""}`).join("\n")}`
+    : "\nNo current State Department travel advisory on file for this country.";
+
+  return `You are a senior threat assessment analyst for U.S. embassy security operations. Your assessments directly inform security posture decisions for diplomatic personnel.
 
 Analyze the current security situation for the following embassy and provide a threat assessment.
 
 EMBASSY: ${embassy.name}
 LOCATION: ${embassy.city}, ${embassy.country} (${embassy.region})
-CURRENT BASELINE THREAT LEVEL: ${baseline}
+PREVIOUS THREAT LEVEL: ${baseline}
+${advisorySummary}
 
-RECENT EVENTS (last 72 hours):
+RECENT INTELLIGENCE EVENTS:
 ${eventSummary || "No recent events recorded."}
 
-Based on the above information, provide a threat assessment in the following JSON format ONLY (no additional text):
+CRITICAL ASSESSMENT RULES:
+- State Department Travel Advisories are AUTHORITATIVE and should heavily influence your assessment:
+  * Level 1 "Exercise Normal Precautions" → suggests LOW or GUARDED
+  * Level 2 "Exercise Increased Caution" → suggests GUARDED or ELEVATED
+  * Level 3 "Reconsider Travel" → suggests HIGH or ELEVATED at minimum
+  * Level 4 "Do Not Travel" → suggests SEVERE or HIGH at minimum
+- A Level 3 or 4 travel advisory should NEVER result in a LOW threat assessment
+- CRITICAL severity events (attacks, terrorism, armed conflict) should significantly raise the threat level
+- Even a single CRITICAL event is significant and should not be dismissed
+- Consider the cumulative effect of multiple warning-level events
+- If no events exist but a travel advisory is present, the advisory alone is sufficient to set the threat level
+
+Provide your assessment in the following JSON format ONLY (no additional text):
 
 {
   "threatLevel": "LOW|GUARDED|ELEVATED|HIGH|SEVERE",
   "confidence": 0.0-1.0,
-  "summary": "2-3 paragraph assessment summary",
+  "summary": "2-3 paragraph assessment summary explaining your reasoning",
   "keyFactors": ["factor1", "factor2", ...],
   "recommendations": ["recommendation1", "recommendation2", ...]
 }
 
 Consider:
-1. The severity and frequency of recent events
-2. The historical baseline threat level
-3. Regional geopolitical context
+1. State Department travel advisory level (most authoritative source)
+2. The severity, frequency, and recency of intelligence events
+3. Regional geopolitical context and stability
 4. Types of threats (terrorism, civil unrest, natural disaster, crime, cyber)
-5. Proximity and relevance of events to embassy operations
-
-Provide a confidence score reflecting how certain you are of the assessment given available data.`;
+5. Direct relevance and proximity of events to embassy operations
+6. Historical baseline threat level and any escalation/de-escalation trends`;
 }
 
 function parseResponse(raw: string, modelName: string): ThreatAnalysis | null {
@@ -213,11 +232,30 @@ export function generateMockAnalysis(
   ).length;
   const totalEvents = events.length;
 
+  // Check for travel advisory events — these are authoritative
+  const advisoryEvents = events.filter((e) => e.category === "Travel Advisory");
+  let advisoryLevel = 0;
+  for (const ae of advisoryEvents) {
+    const levelMatch = ae.title.match(/Level\s+(\d)/i);
+    if (levelMatch) {
+      advisoryLevel = Math.max(advisoryLevel, parseInt(levelMatch[1], 10));
+    }
+  }
+
   // Score: 0-100 based on events
   let score = 0;
   score += criticalCount * 25;
   score += warningCount * 10;
   score += Math.min(totalEvents, 10) * 2;
+
+  // Travel advisory level is a floor — Level 3/4 should dominate scoring
+  const advisoryScore: Record<number, number> = {
+    1: 5,
+    2: 20,
+    3: 50,
+    4: 75,
+  };
+  score = Math.max(score, advisoryScore[advisoryLevel] ?? 0);
 
   // Adjust based on baseline
   const baselineScore: Record<string, number> = {

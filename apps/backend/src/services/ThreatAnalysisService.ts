@@ -47,16 +47,31 @@ export async function assessEmbassy(
   const embassy = await embassyRepo.findOneBy({ id: embassyId });
   if (!embassy) throw new Error(`Embassy not found: ${embassyId}`);
 
-  // Gather recent events (last 72 hours)
+  // Gather recent events (last 72 hours) + always include travel advisories
   const since = new Date(Date.now() - 72 * 3600_000);
   const recentEvents = await eventRepo.find({
     where: {
       embassyId: embassy.id,
       eventDate: MoreThan(since),
     },
+    relations: ["dataSource"],
     order: { eventDate: "DESC" },
     take: 30,
   });
+
+  // Always include the latest travel advisory regardless of age
+  const latestAdvisory = await eventRepo
+    .createQueryBuilder("e")
+    .leftJoinAndSelect("e.dataSource", "ds")
+    .where("e.embassyId = :id", { id: embassy.id })
+    .andWhere("e.category = :cat", { cat: "Travel Advisory" })
+    .orderBy("e.eventDate", "DESC")
+    .limit(1)
+    .getOne();
+
+  if (latestAdvisory && !recentEvents.some((e) => e.id === latestAdvisory.id)) {
+    recentEvents.unshift(latestAdvisory);
+  }
 
   // Compute historical baseline from last assessment or default
   const lastAssessment = await assessmentRepo.findOne({
