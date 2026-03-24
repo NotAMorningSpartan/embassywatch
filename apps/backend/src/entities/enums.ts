@@ -31,6 +31,7 @@ export enum HealthStatus {
   HEALTHY = "HEALTHY",
   DEGRADED = "DEGRADED",
   DOWN = "DOWN",
+  MOCK = "MOCK",
 }
 
 export enum Severity {

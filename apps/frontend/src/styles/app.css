@@ -1495,6 +1495,12 @@ body {
   margin: 0;
 }
 
+.ew-admin-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .ew-admin-timestamp {
   font-size: 0.75rem;
   color: var(--ew-gray);
@@ -1636,6 +1642,26 @@ body {
   background: var(--ew-gray-lightest);
 }
 
+.ew-admin-status-link {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font: inherit;
+  color: var(--ew-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  transition: background 0.15s;
+}
+
+.ew-admin-status-link:hover {
+  background: rgba(46, 117, 182, 0.08);
+}
+
 .ew-admin-status-dot {
   display: inline-block;
   width: 8px;
@@ -1688,6 +1714,34 @@ body {
   font-size: 0.85rem;
   background: var(--ew-white);
   color: var(--ew-ink);
+}
+
+.ew-admin-key-field {
+  display: flex;
+  gap: 0;
+}
+
+.ew-admin-key-field input {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ew-admin-key-toggle {
+  padding: 6px 10px;
+  border: 1px solid var(--ew-gray-light);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  background: var(--ew-gray-lightest);
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.ew-admin-key-toggle:hover {
+  background: var(--ew-gray-light);
 }
 
 .ew-admin-form-grid {

@@ -49,7 +49,7 @@ export function generateMockNews(count: number = 8): RawEventData[] {
       eventDate: new Date(Date.now() - hoursAgo * 3600_000),
       severity: headline.severity,
       category: headline.category,
-      sourceUrl: `https://news.example.com/article/${Date.now()}-${i}`,
+      sourceUrl: `https://news.google.com/search?q=${encodeURIComponent(country + " " + headline.category)}&hl=en`,
       metadata: { source: "NewsAPI", country, mock: true },
       country,
     });
