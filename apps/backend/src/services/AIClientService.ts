@@ -21,7 +21,7 @@ export interface ThreatAnalysis {
   rawAiResponse: string;
 }
 
-function getConfig(): AIConfig {
+export function getConfig(): AIConfig {
   return {
     endpointUrl: process.env.AI_ENDPOINT_URL ?? "",
     modelName: process.env.AI_MODEL_NAME ?? "default",
@@ -128,7 +128,7 @@ function parseResponse(raw: string, modelName: string): ThreatAnalysis | null {
   }
 }
 
-async function callWithRetry(
+export async function callWithRetry(
   config: AIConfig,
   messages: { role: string; content: string }[],
   retries = 3,
