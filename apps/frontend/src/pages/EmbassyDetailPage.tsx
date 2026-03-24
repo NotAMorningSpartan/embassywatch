@@ -318,17 +318,37 @@ export default function EmbassyDetailPage() {
           )}
         </div>
 
-        {/* 5. MINI MAP */}
+        {/* 5. LOCATION: SATELLITE IMAGE + STREET VIEW */}
         <div className="ew-card ew-detail-minimap">
           <h2>Location</h2>
-          <MiniMap
-            lat={embassy.latitude}
-            lng={embassy.longitude}
-            embassyId={embassy.id}
-          />
+          <div className="ew-detail-satellite">
+            <img
+              className="ew-detail-satellite__img"
+              src={`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${embassy.longitude - 0.004},${embassy.latitude - 0.0025},${embassy.longitude + 0.004},${embassy.latitude + 0.0025}&bboxSR=4326&size=400,250&format=jpg&f=image`}
+              alt={`Satellite view of ${embassy.name}`}
+              loading="lazy"
+            />
+          </div>
           {embassy.address && (
             <p className="ew-detail-minimap__address">{embassy.address}</p>
           )}
+          <div className="ew-detail-streetview">
+            <h3>Street View</h3>
+            <iframe
+              className="ew-detail-streetview__frame"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${embassy.longitude - 0.005},${embassy.latitude - 0.003},${embassy.longitude + 0.005},${embassy.latitude + 0.003}&layer=hot&marker=${embassy.latitude},${embassy.longitude}`}
+              loading="lazy"
+              title={`Map view of ${embassy.name}`}
+            />
+            <a
+              className="ew-detail-streetview__link"
+              href={`https://www.google.com/maps/@${embassy.latitude},${embassy.longitude},3a,75y,0h,90t/data=!3m6!1e1!3m4!1s!2e0!7i16384!8i8192`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Google Street View &rarr;
+            </a>
+          </div>
         </div>
 
         {/* 4. HISTORICAL TREND */}
