@@ -2,11 +2,7 @@ import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 import type { ChartConfiguration } from "chart.js";
 
 const THREAT_SCORE: Record<string, number> = {
-  LOW: 1,
-  GUARDED: 2,
-  ELEVATED: 3,
-  HIGH: 4,
-  SEVERE: 5,
+  LOW: 1, GUARDED: 2, ELEVATED: 3, HIGH: 4, SEVERE: 5,
 };
 
 const THREAT_COLORS: Record<string, string> = {
@@ -34,17 +30,22 @@ export async function generateThreatChart(
   assessments: AssessmentPoint[],
 ): Promise<Buffer> {
   const width = 1200;
-  const height = 400;
+  const height = 450;
   const canvas = new ChartJSNodeCanvas({ width, height, backgroundColour: "#ffffff" });
 
-  // Sort by date ascending
   const sorted = [...assessments].sort(
     (a, b) => a.date.getTime() - b.date.getTime(),
   );
 
-  const labels = sorted.map((a) =>
+  // Deduplicate x-axis: only show label when the date changes
+  const rawLabels = sorted.map((a) =>
     a.date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
   );
+  const labels = rawLabels.map((label, i) => {
+    if (i === 0) return label;
+    return label === rawLabels[i - 1] ? "" : label;
+  });
+
   const data = sorted.map((a) => THREAT_SCORE[a.threatLevel] ?? 1);
   const pointColors = data.map(getPointColor);
 
@@ -71,7 +72,25 @@ export async function generateThreatChart(
     options: {
       responsive: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: {
+            generateLabels: () => {
+              return [
+                { text: "Low", fillStyle: THREAT_COLORS.LOW, strokeStyle: THREAT_COLORS.LOW, lineWidth: 0 },
+                { text: "Guarded", fillStyle: THREAT_COLORS.GUARDED, strokeStyle: THREAT_COLORS.GUARDED, lineWidth: 0 },
+                { text: "Elevated", fillStyle: THREAT_COLORS.ELEVATED, strokeStyle: THREAT_COLORS.ELEVATED, lineWidth: 0 },
+                { text: "High", fillStyle: THREAT_COLORS.HIGH, strokeStyle: THREAT_COLORS.HIGH, lineWidth: 0 },
+                { text: "Severe", fillStyle: THREAT_COLORS.SEVERE, strokeStyle: THREAT_COLORS.SEVERE, lineWidth: 0 },
+              ];
+            },
+            usePointStyle: true,
+            pointStyle: "circle",
+            padding: 16,
+            font: { size: 11, weight: "bold" },
+          },
+        },
         title: { display: false },
       },
       scales: {
@@ -81,6 +100,7 @@ export async function generateThreatChart(
             font: { size: 11 },
             color: "#71767a",
             maxRotation: 45,
+            autoSkip: false,
           },
         },
         y: {
@@ -89,22 +109,16 @@ export async function generateThreatChart(
           ticks: {
             stepSize: 1,
             callback: (value) => {
-              const labels: Record<number, string> = {
-                1: "LOW",
-                2: "GUARDED",
-                3: "ELEVATED",
-                4: "HIGH",
-                5: "SEVERE",
+              const lvl: Record<number, string> = {
+                1: "LOW", 2: "GUARDED", 3: "ELEVATED", 4: "HIGH", 5: "SEVERE",
               };
-              return labels[value as number] ?? "";
+              return lvl[value as number] ?? "";
             },
             font: { size: 11, weight: "bold" },
             color: (ctx) => {
               const colors: Record<number, string> = {
-                1: THREAT_COLORS.LOW,
-                2: THREAT_COLORS.GUARDED,
-                3: THREAT_COLORS.ELEVATED,
-                4: THREAT_COLORS.HIGH,
+                1: THREAT_COLORS.LOW, 2: THREAT_COLORS.GUARDED,
+                3: THREAT_COLORS.ELEVATED, 4: THREAT_COLORS.HIGH,
                 5: THREAT_COLORS.SEVERE,
               };
               return colors[ctx.tick.value] ?? "#71767a";
