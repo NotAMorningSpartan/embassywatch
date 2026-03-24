@@ -1,10 +1,9 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: embassywatch-frontend
+  name: embassywatch
   labels:
-    app: embassywatch
-    component: frontend
+    app: embassywatch-frontend
 spec:
   tls:
     termination: edge

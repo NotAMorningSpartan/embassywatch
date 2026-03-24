@@ -1,34 +1,32 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
-  name: embassywatch-redis
+  name: redis
   labels:
-    app: embassywatch
-    component: redis
+    app: redis
 spec:
-  serviceName: embassywatch-redis
   replicas: 1
   selector:
     matchLabels:
-      app: embassywatch
-      component: redis
+      app: redis
   template:
     metadata:
       labels:
-        app: embassywatch
-        component: redis
+        app: redis
     spec:
       securityContext:
         runAsNonRoot: true
-        fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: redis
-          image: redis:7-alpine
+          image: registry.redhat.io/rhel9/redis-7:latest
           ports:
             - containerPort: 6379
               protocol: TCP
+          env:
+            - name: REDIS_PASSWORD
+              value: "embassywatch-redis-pass"
           resources:
             requests:
               cpu: 50m
@@ -64,13 +62,8 @@ spec:
             periodSeconds: 3
           volumeMounts:
             - name: data
-              mountPath: /data
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 1Gi
+              mountPath: /var/lib/redis/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redis-data
