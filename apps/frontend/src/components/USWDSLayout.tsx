@@ -210,7 +210,19 @@ export default function USWDSLayout() {
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {sidebarCollapsed ? "\u25B6" : "\u25C0"}
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`ew-sidebar__toggle-icon${sidebarCollapsed ? " ew-sidebar__toggle-icon--collapsed" : ""}`}
+            >
+              <polyline points="11,4 6,9 11,14" />
+            </svg>
           </button>
           <ul className="ew-sidebar__nav">
             {sidebarItems.map((item) => (

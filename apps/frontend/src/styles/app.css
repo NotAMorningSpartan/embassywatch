@@ -288,19 +288,44 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--ew-gray-light);
+  width: 28px;
+  height: 28px;
+  margin: 10px auto 10px 8px;
+  background: var(--ew-gray-lightest);
+  border: 1px solid var(--ew-gray-light);
+  border-radius: 6px;
   cursor: pointer;
   color: var(--ew-gray);
-  font-size: 1.125rem;
-  transition: color 0.15s;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.ew-sidebar--collapsed .ew-sidebar__toggle {
+  margin: 10px auto;
 }
 
 .ew-sidebar__toggle:hover {
-  color: var(--ew-primary);
-  background: var(--ew-gray-lightest);
+  color: var(--ew-secondary);
+  background: rgba(46, 117, 182, 0.08);
+  border-color: var(--ew-secondary);
+}
+
+.ew-sidebar__toggle-icon {
+  transition: transform 0.25s ease;
+}
+
+.ew-sidebar__toggle-icon--collapsed {
+  transform: rotate(180deg);
+}
+
+[data-theme="dark"] .ew-sidebar__toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ew-sidebar__toggle:hover {
+  background: rgba(74, 154, 229, 0.12);
+  border-color: #4a9ae5;
+  color: #4a9ae5;
 }
 
 .ew-sidebar__nav {
@@ -1233,6 +1258,51 @@ body {
   margin-top: 8px;
   font-size: 0.8rem;
   color: var(--ew-gray-dark);
+}
+
+/* Satellite image */
+.ew-detail-satellite {
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ew-gray-lightest);
+}
+
+.ew-detail-satellite__img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+}
+
+/* Street View */
+.ew-detail-streetview {
+  margin-top: 16px;
+}
+
+.ew-detail-streetview h3 {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: var(--ew-text);
+}
+
+.ew-detail-streetview__frame {
+  width: 100%;
+  height: 200px;
+  border: none;
+  border-radius: 6px;
+  background: var(--ew-gray-lightest);
+}
+
+.ew-detail-streetview__link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--ew-secondary);
+  text-decoration: none;
+}
+
+.ew-detail-streetview__link:hover {
+  text-decoration: underline;
 }
 
 /* Trend chart */
