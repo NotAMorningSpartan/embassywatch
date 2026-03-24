@@ -3,19 +3,16 @@ kind: Deployment
 metadata:
   name: embassywatch-frontend
   labels:
-    app: embassywatch
-    component: frontend
+    app: embassywatch-frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: embassywatch
-      component: frontend
+      app: embassywatch-frontend
   template:
     metadata:
       labels:
-        app: embassywatch
-        component: frontend
+        app: embassywatch-frontend
     spec:
       securityContext:
         runAsNonRoot: true
@@ -23,7 +20,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: embassywatch-frontend:latest
+          image: quay.io/tknessmi-rh/embassywatch-frontend:latest
           ports:
             - containerPort: 8080
               protocol: TCP

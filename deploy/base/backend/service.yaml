@@ -3,8 +3,7 @@ kind: Service
 metadata:
   name: embassywatch-backend
   labels:
-    app: embassywatch
-    component: backend
+    app: embassywatch-backend
 spec:
   type: ClusterIP
   ports:
@@ -12,5 +11,4 @@ spec:
       targetPort: 4000
       protocol: TCP
   selector:
-    app: embassywatch
-    component: backend
+    app: embassywatch-backend

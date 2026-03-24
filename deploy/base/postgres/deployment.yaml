@@ -1,49 +1,45 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
-  name: embassywatch-postgres
+  name: postgres
   labels:
-    app: embassywatch
-    component: postgres
+    app: postgres
 spec:
-  serviceName: embassywatch-postgres
   replicas: 1
   selector:
     matchLabels:
-      app: embassywatch
-      component: postgres
+      app: postgres
   template:
     metadata:
       labels:
-        app: embassywatch
-        component: postgres
+        app: postgres
     spec:
       securityContext:
         runAsNonRoot: true
-        fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: registry.redhat.io/rhel9/postgresql-16:latest
           ports:
             - containerPort: 5432
               protocol: TCP
           env:
-            - name: POSTGRES_DB
+            - name: POSTGRESQL_DATABASE
               valueFrom:
                 secretKeyRef:
-                  name: embassywatch-postgres-secret
+                  name: postgres-secret
                   key: POSTGRES_DB
-            - name: POSTGRES_USER
-              value: "postgres"
-            - name: POSTGRES_PASSWORD
+            - name: POSTGRESQL_USER
               valueFrom:
                 secretKeyRef:
-                  name: embassywatch-postgres-secret
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
                   key: POSTGRES_PASSWORD
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 100m
@@ -82,13 +78,8 @@ spec:
             periodSeconds: 5
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 10Gi
+              mountPath: /var/lib/pgsql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data

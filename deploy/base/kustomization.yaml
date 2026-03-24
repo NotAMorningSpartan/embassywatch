@@ -7,6 +7,3 @@ resources:
   - postgres/
   - redis/
   - ai-config/
-
-commonLabels:
-  app.kubernetes.io/part-of: embassywatch
