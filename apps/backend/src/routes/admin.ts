@@ -51,10 +51,11 @@ async function saveRuntimeConfig(config: RuntimeConfig): Promise<void> {
   }
 }
 
-// Load saved config on module init
+// Load saved config on module init — Redis config always overrides .env
+// because it represents the admin's most recent choices from the UI
 loadRuntimeConfig().then((config) => {
   for (const [key, value] of Object.entries(config)) {
-    if (value !== undefined && value !== "" && !process.env[key]) {
+    if (value !== undefined && value !== "") {
       process.env[key] = value;
     }
   }
@@ -435,20 +436,30 @@ router.get("/activity", async (req, res) => {
 
   const eventRepo = AppDataSource.getRepository(RawEvent);
   const [events, total] = await eventRepo.findAndCount({
-    relations: ["dataSource"],
+    relations: ["dataSource", "embassy"],
     order: { createdAt: "DESC" },
     skip: (page - 1) * limit,
     take: limit,
   });
 
-  const activity = events.map((e) => ({
-    id: e.id,
-    type: "data_fetch" as const,
-    title: e.title,
-    source: e.dataSource?.name ?? "Unknown",
-    severity: e.severity,
-    timestamp: e.createdAt,
-  }));
+  const activity = events.map((e) => {
+    const meta = (e.metadata ?? {}) as Record<string, unknown>;
+    return {
+      id: e.id,
+      type: "data_fetch" as const,
+      title: e.title,
+      source: e.dataSource?.name ?? "Unknown",
+      severity: e.severity,
+      timestamp: e.createdAt,
+      embassyId: e.embassyId ?? null,
+      embassyName: e.embassy?.name ?? null,
+      matchedBy: (meta.matchedBy as string) ?? null,
+      aiReasoning: (meta.aiReasoning as string) ?? null,
+      aiConfidence: (meta.aiConfidence as number) ?? null,
+      aiRelevanceToEmbassy: (meta.aiRelevanceToEmbassy as string) ?? null,
+      aiKeyEntities: (meta.aiKeyEntities as string[]) ?? null,
+    };
+  });
 
   res.json({ data: activity, total, page, limit });
 });

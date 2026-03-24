@@ -76,8 +76,34 @@ export class DataAggregationService {
       const embassyRepo = AppDataSource.getRepository(Embassy);
       const eventRepo = AppDataSource.getRepository(RawEvent);
 
+      // Get existing source URLs for this data source to deduplicate
+      const existingUrls = new Set(
+        (
+          await eventRepo
+            .createQueryBuilder("e")
+            .select("e.sourceUrl")
+            .where("e.dataSourceId = :dsId", { dsId: dsEntity.id })
+            .andWhere("e.sourceUrl IS NOT NULL")
+            .andWhere("e.sourceUrl != ''")
+            .getMany()
+        ).map((e) => e.sourceUrl),
+      );
+
       const entities: RawEvent[] = [];
+      const seenUrls = new Set<string>();
+
       for (const ev of rawEvents) {
+        // Skip duplicates by sourceUrl
+        if (ev.sourceUrl && (existingUrls.has(ev.sourceUrl) || seenUrls.has(ev.sourceUrl))) {
+          continue;
+        }
+        if (ev.sourceUrl) seenUrls.add(ev.sourceUrl);
+
+        // Also deduplicate by title within this batch
+        const titleKey = ev.title.toLowerCase().trim();
+        if (seenUrls.has(`title:${titleKey}`)) continue;
+        seenUrls.add(`title:${titleKey}`);
+
         let embassyId: string | null = ev.embassyId ?? null;
 
         if (!embassyId && ev.country) {
@@ -101,8 +127,11 @@ export class DataAggregationService {
         entities.push(entity);
       }
 
-      // Bulk insert
-      await eventRepo.save(entities);
+      // Bulk insert only new events
+      if (entities.length > 0) {
+        await eventRepo.save(entities);
+      }
+      console.log(`[Aggregation] ${adapter.name}: ${rawEvents.length} fetched, ${rawEvents.length - entities.length} duplicates skipped, ${entities.length} new`);
 
       // Update data source health & timestamp
       dsEntity.lastFetchedAt = new Date();
