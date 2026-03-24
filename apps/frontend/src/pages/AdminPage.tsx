@@ -10,6 +10,19 @@ interface HealthEntry {
   message?: string;
 }
 
+interface HealthCheck {
+  status: string;
+  name: string;
+  category: "infrastructure" | "data_source" | "ai";
+  message: string;
+  details?: Record<string, string | number | boolean | null>;
+}
+
+interface HealthResponse {
+  checks: HealthCheck[];
+  timestamp: string;
+}
+
 interface SourceDetailed {
   id: string;
   name: string;
@@ -53,7 +66,7 @@ function useHealth() {
     queryKey: ["admin", "health"],
     queryFn: () =>
       api
-        .get<Record<string, HealthEntry | string>>("/api/admin/system/health")
+        .get<HealthResponse>("/api/admin/system/health")
         .then((r) => r.data),
     refetchInterval: 60_000,
   });
@@ -139,6 +152,89 @@ export default function AdminPage() {
   );
 }
 
+/* ---- Service Logos ---- */
+
+function ServiceLogo({ name }: { name: string }) {
+  const size = 28;
+  switch (name) {
+    case "PostgreSQL Database":
+      // PostgreSQL elephant (simplified)
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#336791" />
+          <path d="M22.5 10.5c-.5-2-2.5-3.5-5-3.5-3 0-5.5 2-6 4.5-.5 2.5.5 5 2.5 6.5l-.5 4.5h2.5l.5-3.5c1 .5 2 .5 3 0l.5 3.5h2.5l-.5-4.5c2-1.5 3-4 2.5-6.5z" fill="white" opacity="0.9"/>
+          <circle cx="14.5" cy="12" r="1" fill="#336791"/>
+        </svg>
+      );
+    case "Redis Cache":
+      // Redis logo (diamond shape)
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#DC382D" />
+          <path d="M16 6l10 7-10 7-10-7z" fill="white" opacity="0.3"/>
+          <path d="M16 9l10 7-10 7-10-7z" fill="white" opacity="0.5"/>
+          <path d="M16 12l10 7-10 7-10-7z" fill="white" opacity="0.9"/>
+        </svg>
+      );
+    case "AI Inference Endpoint":
+      // AI brain/chip icon
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#7C3AED" />
+          <rect x="10" y="10" width="12" height="12" rx="2" stroke="white" strokeWidth="1.5" fill="none"/>
+          <circle cx="16" cy="16" r="2.5" fill="white" opacity="0.9"/>
+          <line x1="16" y1="7" x2="16" y2="10" stroke="white" strokeWidth="1.5"/>
+          <line x1="16" y1="22" x2="16" y2="25" stroke="white" strokeWidth="1.5"/>
+          <line x1="7" y1="16" x2="10" y2="16" stroke="white" strokeWidth="1.5"/>
+          <line x1="22" y1="16" x2="25" y2="16" stroke="white" strokeWidth="1.5"/>
+          <line x1="11" y1="8.5" x2="12" y2="10.5" stroke="white" strokeWidth="1"/>
+          <line x1="21" y1="8.5" x2="20" y2="10.5" stroke="white" strokeWidth="1"/>
+          <line x1="11" y1="23.5" x2="12" y2="21.5" stroke="white" strokeWidth="1"/>
+          <line x1="21" y1="23.5" x2="20" y2="21.5" stroke="white" strokeWidth="1"/>
+        </svg>
+      );
+    case "NewsAPI":
+      // News/newspaper icon
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#1A73E8" />
+          <rect x="8" y="8" width="16" height="16" rx="2" fill="white" opacity="0.9"/>
+          <rect x="10" y="10" width="8" height="3" rx="0.5" fill="#1A73E8"/>
+          <line x1="10" y1="15" x2="22" y2="15" stroke="#1A73E8" strokeWidth="1" opacity="0.4"/>
+          <line x1="10" y1="17.5" x2="22" y2="17.5" stroke="#1A73E8" strokeWidth="1" opacity="0.4"/>
+          <line x1="10" y1="20" x2="18" y2="20" stroke="#1A73E8" strokeWidth="1" opacity="0.4"/>
+          <rect x="19" y="10" width="3" height="5" rx="0.5" fill="#1A73E8" opacity="0.3"/>
+        </svg>
+      );
+    case "OpenWeatherMap":
+      // Weather/cloud with sun
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#EB6E4B" />
+          <circle cx="20" cy="12" r="4" fill="#FFD43B" opacity="0.9"/>
+          <path d="M10 22c-2.2 0-4-1.8-4-4s1.8-4 4-4c.4-2.8 2.8-5 5.8-5 2.5 0 4.6 1.6 5.4 3.8.4-.1.8-.2 1.3-.2 2.2 0 4 1.8 4 4s-1.8 4-4 4H10z" fill="white" opacity="0.9"/>
+        </svg>
+      );
+    case "State Dept Travel Advisories":
+      // Government/shield icon
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#1B3A5C" />
+          <path d="M16 6l8 4v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11v-6l8-4z" fill="white" opacity="0.9"/>
+          <path d="M14.5 16l2 2 4-4" stroke="#1B3A5C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg className="ew-admin-service-logo" width={size} height={size} viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#71767A" />
+          <circle cx="16" cy="16" r="6" stroke="white" strokeWidth="1.5" fill="none"/>
+          <path d="M16 13v4M16 19v1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      );
+  }
+}
+
 /* ---- Health ---- */
 
 function HealthSection() {
@@ -152,62 +248,146 @@ function HealthSection() {
       : "#d83933";
   };
 
+  const statusLabel = (s: string) => {
+    const lower = s.toLowerCase();
+    return lower === "healthy" ? "Healthy"
+      : lower === "mock" ? "Mock Data"
+      : lower === "degraded" ? "Degraded"
+      : lower === "not_configured" ? "Not Configured"
+      : "Down";
+  };
+
   if (isLoading) return <p>Loading health data...</p>;
 
-  const entries = data
-    ? Object.entries(data).filter(([k]) => k !== "timestamp")
-    : [];
-  const timestamp = data?.timestamp as string | undefined;
+  const checks = data?.checks ?? [];
+  const timestamp = data?.timestamp;
+
+  const infraChecks = checks.filter((c) => c.category === "infrastructure");
+  const aiChecks = checks.filter((c) => c.category === "ai");
+  const sourceChecks = checks.filter((c) => c.category === "data_source");
+
+  const allHealthy = checks.every((c) => c.status === "healthy");
+  const anyDown = checks.some((c) => c.status === "down");
 
   return (
     <div className="ew-admin-section">
       <div className="ew-admin-section__header">
         <h2>System Health</h2>
-        <button
-          className="ew-admin-btn"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          {isFetching ? "Checking..." : "Run Health Check"}
-        </button>
+        <div className="ew-admin-section__actions">
+          <span
+            className="ew-admin-health-summary"
+            style={{ color: allHealthy ? "#2e8540" : anyDown ? "#d83933" : "#e8a820" }}
+          >
+            {allHealthy ? "All systems operational" : anyDown ? "Issues detected" : "Partially operational"}
+          </span>
+          <button
+            className="ew-admin-btn"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? "Checking..." : "Run Health Check"}
+          </button>
+        </div>
       </div>
       {timestamp && (
         <p className="ew-admin-timestamp">
           Last checked: {new Date(timestamp).toLocaleString()}
         </p>
       )}
-      <div className="ew-admin-health-grid">
-        {entries.map(([key, val]) => {
-          const entry = val as HealthEntry;
-          return (
-            <div key={key} className="ew-admin-health-card">
-              <div
-                className="ew-admin-health-card__indicator"
-                style={{ background: statusColor(entry.status) }}
-              />
-              <div className="ew-admin-health-card__info">
-                <strong>
-                  {key === "ai"
-                    ? "AI Endpoint"
-                    : key === "database"
-                      ? "Database"
-                      : key === "redis"
-                        ? "Redis"
-                        : key.replace("source_", "")}
-                </strong>
-                <span className="ew-admin-health-card__status">
-                  {entry.status}
-                </span>
-                {entry.message && (
-                  <span className="ew-admin-health-card__msg">
-                    {entry.message}
+
+      {[
+        { label: "Infrastructure", items: infraChecks },
+        { label: "AI Services", items: aiChecks },
+        { label: "Data Sources", items: sourceChecks },
+      ].map((group) => (
+        <div key={group.label}>
+          <h3 className="ew-admin-health-category">{group.label}</h3>
+          <div className="ew-admin-health-grid">
+            {group.items.map((check) => (
+              <div key={check.name} className="ew-admin-health-card">
+                <div className="ew-admin-health-card__header">
+                  <ServiceLogo name={check.name} />
+                  <strong className="ew-admin-health-card__name">{check.name}</strong>
+                  <span
+                    className="ew-admin-health-card__badge"
+                    style={{
+                      background: statusColor(check.status) + "18",
+                      color: statusColor(check.status),
+                    }}
+                  >
+                    {statusLabel(check.status)}
                   </span>
+                </div>
+                {check.details && (
+                  <div className="ew-admin-health-card__metrics">
+                    {check.details.latencyMs != null && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Latency</span>
+                        <span className="ew-admin-health-metric__value">
+                          {Number(check.details.latencyMs)}
+                          <span className="ew-admin-health-metric__unit">ms</span>
+                        </span>
+                      </div>
+                    )}
+                    {check.details.eventCount != null && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Events</span>
+                        <span className="ew-admin-health-metric__value">
+                          {Number(check.details.eventCount).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {check.details.embassyCount != null && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Embassies</span>
+                        <span className="ew-admin-health-metric__value">
+                          {Number(check.details.embassyCount)}
+                        </span>
+                      </div>
+                    )}
+                    {check.details.totalArticles != null && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Available</span>
+                        <span className="ew-admin-health-metric__value">
+                          {Number(check.details.totalArticles).toLocaleString()}
+                          <span className="ew-admin-health-metric__unit">articles</span>
+                        </span>
+                      </div>
+                    )}
+                    {check.details.totalAdvisories != null && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Advisories</span>
+                        <span className="ew-admin-health-metric__value">
+                          {Number(check.details.totalAdvisories)}
+                        </span>
+                      </div>
+                    )}
+                    {check.details.model != null && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Model</span>
+                        <span className="ew-admin-health-metric__value ew-admin-health-metric__value--text">
+                          {String(check.details.model)}
+                        </span>
+                      </div>
+                    )}
+                    {check.details.lastFetched != null && check.details.lastFetched !== "" && (
+                      <div className="ew-admin-health-metric">
+                        <span className="ew-admin-health-metric__label">Last Fetch</span>
+                        <span className="ew-admin-health-metric__value ew-admin-health-metric__value--text">
+                          {new Date(String(check.details.lastFetched)).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!check.details && check.message && (
+                  <span className="ew-admin-health-card__msg">{check.message}</span>
                 )}
               </div>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

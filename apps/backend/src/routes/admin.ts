@@ -126,106 +126,299 @@ router.patch("/sources/:id", validate(updateSourceSchema), async (req, res) => {
 
 // GET /api/admin/system/health
 router.get("/system/health", async (_req, res) => {
-  const health: Record<string, { status: string; message?: string }> = {};
+  const useMock = process.env.USE_MOCK_DATA === "true";
+  const eventRepo = AppDataSource.getRepository(RawEvent);
+
+  interface HealthDetail {
+    status: string;
+    name: string;
+    category: "infrastructure" | "data_source" | "ai";
+    message: string;
+    details?: Record<string, string | number | boolean | null>;
+  }
+
+  const checks: HealthDetail[] = [];
+
+  // ---- INFRASTRUCTURE ----
 
   // Database
   try {
-    await AppDataSource.query("SELECT 1");
-    health.database = { status: "healthy" };
+    const startMs = Date.now();
+    const [{ count }] = await AppDataSource.query("SELECT COUNT(*) as count FROM embassies");
+    const latencyMs = Date.now() - startMs;
+    checks.push({
+      status: "healthy",
+      name: "PostgreSQL Database",
+      category: "infrastructure",
+      message: `Connected · ${count} embassies · ${latencyMs}ms latency`,
+      details: { latencyMs, embassyCount: Number(count) },
+    });
   } catch (err) {
-    health.database = { status: "down", message: (err as Error).message };
+    checks.push({
+      status: "down",
+      name: "PostgreSQL Database",
+      category: "infrastructure",
+      message: `Connection failed: ${(err as Error).message}`,
+    });
   }
 
   // Redis
   if (redis) {
     try {
+      const startMs = Date.now();
       await redis.ping();
-      health.redis = { status: "healthy" };
+      const latencyMs = Date.now() - startMs;
+      const info = await redis.info("memory");
+      const memMatch = info.match(/used_memory_human:(\S+)/);
+      checks.push({
+        status: "healthy",
+        name: "Redis Cache",
+        category: "infrastructure",
+        message: `Connected · ${latencyMs}ms latency${memMatch ? ` · ${memMatch[1]} memory` : ""}`,
+        details: { latencyMs },
+      });
     } catch (err) {
-      health.redis = { status: "down", message: (err as Error).message };
+      checks.push({
+        status: "down",
+        name: "Redis Cache",
+        category: "infrastructure",
+        message: `Connection failed: ${(err as Error).message}`,
+      });
     }
   } else {
-    health.redis = { status: "down", message: "Not connected" };
+    checks.push({
+      status: "down",
+      name: "Redis Cache",
+      category: "infrastructure",
+      message: "Not connected — rate limiting and token blacklist disabled",
+    });
   }
 
-  // AI endpoint — actually test the connection
+  // ---- AI ----
+
   const aiUrl = process.env.AI_ENDPOINT_URL;
   const aiKey = process.env.AI_API_KEY;
+  const aiModel = process.env.AI_MODEL_NAME ?? "not configured";
   if (aiUrl) {
     try {
-      const response = await fetch(aiUrl, {
+      const startMs = Date.now();
+      const fullUrl = aiUrl.includes("/v1/chat/completions")
+        ? aiUrl
+        : `${aiUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(aiKey ? { Authorization: `Bearer ${aiKey}` } : {}),
         },
         body: JSON.stringify({
-          model: process.env.AI_MODEL_NAME ?? "default",
+          model: aiModel,
           messages: [{ role: "user", content: "ping" }],
           max_tokens: 5,
           temperature: 0,
         }),
         signal: AbortSignal.timeout(10000),
       });
-      health.ai = { status: response.ok ? "healthy" : "degraded", message: response.ok ? "Endpoint responding" : `HTTP ${response.status}` };
+      const latencyMs = Date.now() - startMs;
+      if (response.ok) {
+        checks.push({
+          status: "healthy",
+          name: "AI Inference Endpoint",
+          category: "ai",
+          message: `Model: ${aiModel} · ${latencyMs}ms response time`,
+          details: { model: aiModel, latencyMs, endpoint: aiUrl },
+        });
+      } else {
+        checks.push({
+          status: "degraded",
+          name: "AI Inference Endpoint",
+          category: "ai",
+          message: `HTTP ${response.status} · Model: ${aiModel} · ${latencyMs}ms`,
+          details: { model: aiModel, latencyMs, httpStatus: response.status },
+        });
+      }
     } catch (err) {
-      health.ai = { status: "down", message: (err as Error).message };
+      checks.push({
+        status: "down",
+        name: "AI Inference Endpoint",
+        category: "ai",
+        message: `Connection failed: ${(err as Error).message}`,
+        details: { model: aiModel, endpoint: aiUrl },
+      });
     }
   } else {
-    health.ai = { status: "down", message: "Not configured" };
+    checks.push({
+      status: "not_configured",
+      name: "AI Inference Endpoint",
+      category: "ai",
+      message: "No endpoint URL configured — go to AI Config to set up",
+    });
   }
 
-  // NewsAPI health
+  // ---- DATA SOURCES ----
+
+  // Get DB source info for last-fetched timestamps and event counts
+  const sources = await sourceRepo().find();
+  const sourceMap = new Map(sources.map((s) => [s.name, s]));
+
+  // NewsAPI
   const newsKey = process.env.NEWSAPI_KEY;
-  if (newsKey && process.env.USE_MOCK_DATA !== "true") {
+  const newsSource = sourceMap.get("NewsAPI");
+  const newsEventCount = newsSource
+    ? await eventRepo.count({ where: { dataSourceId: newsSource.id } })
+    : 0;
+  if (useMock) {
+    checks.push({
+      status: "mock",
+      name: "NewsAPI",
+      category: "data_source",
+      message: `Using mock data · ${newsEventCount} events stored`,
+      details: { eventCount: newsEventCount, lastFetched: newsSource?.lastFetchedAt?.toISOString() ?? null },
+    });
+  } else if (newsKey) {
     try {
+      const startMs = Date.now();
       const r = await fetch(`https://newsapi.org/v2/top-headlines?country=us&pageSize=1&apiKey=${newsKey}`, { signal: AbortSignal.timeout(8000) });
       const d = await r.json();
-      health.newsapi = { status: d.status === "ok" ? "healthy" : "degraded", message: d.status === "ok" ? `${d.totalResults} articles` : d.message };
+      const latencyMs = Date.now() - startMs;
+      if (d.status === "ok") {
+        checks.push({
+          status: "healthy",
+          name: "NewsAPI",
+          category: "data_source",
+          message: `${d.totalResults.toLocaleString()} articles available · ${newsEventCount} events stored · ${latencyMs}ms`,
+          details: { totalArticles: d.totalResults, eventCount: newsEventCount, latencyMs, lastFetched: newsSource?.lastFetchedAt?.toISOString() ?? null },
+        });
+      } else {
+        checks.push({
+          status: "degraded",
+          name: "NewsAPI",
+          category: "data_source",
+          message: `API error: ${d.message ?? "Unknown"} · ${newsEventCount} events stored`,
+          details: { eventCount: newsEventCount },
+        });
+      }
     } catch (err) {
-      health.newsapi = { status: "down", message: (err as Error).message };
+      checks.push({
+        status: "down",
+        name: "NewsAPI",
+        category: "data_source",
+        message: `Connection failed: ${(err as Error).message}`,
+        details: { eventCount: newsEventCount },
+      });
     }
   } else {
-    health.newsapi = { status: newsKey ? "mock" : "not_configured", message: newsKey ? "Using mock data" : "No API key" };
+    checks.push({
+      status: "not_configured",
+      name: "NewsAPI",
+      category: "data_source",
+      message: "No API key configured — go to AI Config to set up",
+    });
   }
 
-  // OpenWeatherMap health
+  // OpenWeatherMap
   const weatherKey = process.env.OPENWEATHER_KEY;
-  if (weatherKey && process.env.USE_MOCK_DATA !== "true") {
+  const weatherSource = sourceMap.get("OpenWeatherMap");
+  const weatherEventCount = weatherSource
+    ? await eventRepo.count({ where: { dataSourceId: weatherSource.id } })
+    : 0;
+  if (useMock) {
+    checks.push({
+      status: "mock",
+      name: "OpenWeatherMap",
+      category: "data_source",
+      message: `Using mock data · ${weatherEventCount} events stored`,
+      details: { eventCount: weatherEventCount, lastFetched: weatherSource?.lastFetchedAt?.toISOString() ?? null },
+    });
+  } else if (weatherKey) {
     try {
+      const startMs = Date.now();
       const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=London&appid=${weatherKey}`, { signal: AbortSignal.timeout(8000) });
-      health.openweather = { status: r.ok ? "healthy" : "degraded", message: r.ok ? "API responding" : `HTTP ${r.status}` };
+      const latencyMs = Date.now() - startMs;
+      if (r.ok) {
+        const d = await r.json();
+        checks.push({
+          status: "healthy",
+          name: "OpenWeatherMap",
+          category: "data_source",
+          message: `API responding · ${weatherEventCount} events stored · ${latencyMs}ms`,
+          details: { eventCount: weatherEventCount, latencyMs, testCity: "London", temp: d.main?.temp, lastFetched: weatherSource?.lastFetchedAt?.toISOString() ?? null },
+        });
+      } else {
+        checks.push({
+          status: "degraded",
+          name: "OpenWeatherMap",
+          category: "data_source",
+          message: `HTTP ${r.status} · ${weatherEventCount} events stored`,
+          details: { eventCount: weatherEventCount, httpStatus: r.status },
+        });
+      }
     } catch (err) {
-      health.openweather = { status: "down", message: (err as Error).message };
+      checks.push({
+        status: "down",
+        name: "OpenWeatherMap",
+        category: "data_source",
+        message: `Connection failed: ${(err as Error).message}`,
+        details: { eventCount: weatherEventCount },
+      });
     }
   } else {
-    health.openweather = { status: weatherKey ? "mock" : "not_configured", message: weatherKey ? "Using mock data" : "No API key" };
+    checks.push({
+      status: "not_configured",
+      name: "OpenWeatherMap",
+      category: "data_source",
+      message: "No API key configured — go to AI Config to set up",
+    });
   }
 
-  // Travel Advisory (public API, no key needed)
-  if (process.env.USE_MOCK_DATA !== "true") {
+  // Travel Advisory
+  const advisorySource = sourceMap.get("State Department Travel Advisories");
+  const advisoryEventCount = advisorySource
+    ? await eventRepo.count({ where: { dataSourceId: advisorySource.id } })
+    : 0;
+  if (useMock) {
+    checks.push({
+      status: "mock",
+      name: "State Dept Travel Advisories",
+      category: "data_source",
+      message: `Using mock data · ${advisoryEventCount} advisories stored`,
+      details: { eventCount: advisoryEventCount, lastFetched: advisorySource?.lastFetchedAt?.toISOString() ?? null },
+    });
+  } else {
     try {
-      const r = await fetch("https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html", { method: "HEAD", signal: AbortSignal.timeout(8000) });
-      health.travel_advisory = { status: r.ok ? "healthy" : "degraded" };
+      const startMs = Date.now();
+      const r = await fetch("https://cadataapi.state.gov/api/TravelAdvisories", { signal: AbortSignal.timeout(10000) });
+      const latencyMs = Date.now() - startMs;
+      if (r.ok) {
+        const advisories = await r.json();
+        checks.push({
+          status: "healthy",
+          name: "State Dept Travel Advisories",
+          category: "data_source",
+          message: `${advisories.length} advisories available · ${advisoryEventCount} matched to embassies · ${latencyMs}ms`,
+          details: { totalAdvisories: advisories.length, eventCount: advisoryEventCount, latencyMs, lastFetched: advisorySource?.lastFetchedAt?.toISOString() ?? null },
+        });
+      } else {
+        checks.push({
+          status: "degraded",
+          name: "State Dept Travel Advisories",
+          category: "data_source",
+          message: `HTTP ${r.status} from cadataapi.state.gov · ${advisoryEventCount} advisories stored`,
+          details: { eventCount: advisoryEventCount, httpStatus: r.status },
+        });
+      }
     } catch (err) {
-      health.travel_advisory = { status: "down", message: (err as Error).message };
+      checks.push({
+        status: "down",
+        name: "State Dept Travel Advisories",
+        category: "data_source",
+        message: `Connection failed: ${(err as Error).message}`,
+        details: { eventCount: advisoryEventCount },
+      });
     }
-  } else {
-    health.travel_advisory = { status: "mock", message: "Using mock data" };
   }
 
-  // Data source health from DB
-  const sources = await sourceRepo().find();
-  for (const src of sources) {
-    health[`source_${src.name}`] = {
-      status: src.healthStatus ?? "unknown",
-      message: src.lastFetchedAt
-        ? `Last fetched: ${src.lastFetchedAt.toISOString()}`
-        : "Never fetched",
-    };
-  }
-
-  res.json({ ...health, timestamp: new Date().toISOString() });
+  res.json({ checks, timestamp: new Date().toISOString() });
 });
 
 // GET /api/admin/sources with event counts
