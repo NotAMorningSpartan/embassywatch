@@ -580,7 +580,7 @@ function ConfigSection() {
             onChange={(e) =>
               setConfig({ ...config, AI_ENDPOINT_URL: e.target.value })
             }
-            placeholder="https://api.example.com/v1/chat/completions"
+            placeholder="https://your-endpoint.com or https://your-endpoint.com/v1/chat/completions"
           />
         </div>
         <div className="ew-admin-form-row">

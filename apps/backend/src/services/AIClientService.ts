@@ -116,7 +116,11 @@ async function callWithRetry(
 ): Promise<string> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(`${config.endpointUrl}/v1/chat/completions`, {
+      // Support both base URL and full URL with /v1/chat/completions
+      const url = config.endpointUrl.includes("/v1/chat/completions")
+        ? config.endpointUrl
+        : `${config.endpointUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -176,8 +180,9 @@ export async function analyzeEmbassyThreats(
       `[AIClient] Analyzing ${embassy.name} with ${recentEvents.length} events`,
     );
 
+    // Use single user message for maximum compatibility with all model providers
+    // (some models like Llama-Guard don't support system role or require alternating roles)
     const rawResponse = await callWithRetry(config, [
-      { role: "system", content: "You are a security threat assessment analyst." },
       { role: "user", content: prompt },
     ]);
 

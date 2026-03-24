@@ -344,8 +344,12 @@ router.post("/config/test-ai", async (req, res) => {
     return;
   }
 
+  const fullUrl = url.includes("/v1/chat/completions")
+    ? url
+    : `${url.replace(/\/+$/, "")}/v1/chat/completions`;
+
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -353,7 +357,7 @@ router.post("/config/test-ai", async (req, res) => {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: "Respond with exactly: OK" }],
+        messages: [{ role: "user", content: "Respond with exactly one word: OK" }],
         max_tokens: 10,
         temperature: 0,
       }),
