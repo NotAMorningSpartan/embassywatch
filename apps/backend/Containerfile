@@ -1,6 +1,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Install build dependencies for native modules (canvas/chartjs-node-canvas)
+RUN apk add --no-cache python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
+
 COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/
 RUN npm ci --workspace=@embassywatch/backend
@@ -12,9 +15,14 @@ RUN npm run build --workspace=@embassywatch/backend
 FROM node:20-alpine
 WORKDIR /app
 
+# Runtime dependencies for canvas native module
+RUN apk add --no-cache cairo pango jpeg giflib librsvg pixman
+
 COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/
-RUN npm ci --workspace=@embassywatch/backend --omit=dev
+RUN apk add --no-cache python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev \
+    && npm ci --workspace=@embassywatch/backend --omit=dev \
+    && apk del python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
 
 COPY --from=build /app/apps/backend/dist apps/backend/dist/
 
