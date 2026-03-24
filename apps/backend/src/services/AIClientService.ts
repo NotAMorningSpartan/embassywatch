@@ -161,7 +161,7 @@ async function callWithRetry(
         throw new Error(`AI API returned ${res.status}: ${errText.slice(0, 200)}`);
       }
 
-      const data = await res.json();
+      const data = await res.json() as Record<string, any>;
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error("Empty response from AI API");
       return content;

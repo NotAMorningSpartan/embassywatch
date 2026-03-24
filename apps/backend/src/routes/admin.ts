@@ -279,7 +279,7 @@ router.get("/system/health", async (_req, res) => {
     try {
       const startMs = Date.now();
       const r = await fetch(`https://newsapi.org/v2/top-headlines?country=us&pageSize=1&apiKey=${newsKey}`, { signal: AbortSignal.timeout(8000) });
-      const d = await r.json();
+      const d = await r.json() as Record<string, any>;
       const latencyMs = Date.now() - startMs;
       if (d.status === "ok") {
         checks.push({
@@ -336,7 +336,7 @@ router.get("/system/health", async (_req, res) => {
       const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=London&appid=${weatherKey}`, { signal: AbortSignal.timeout(8000) });
       const latencyMs = Date.now() - startMs;
       if (r.ok) {
-        const d = await r.json();
+        const d = await r.json() as Record<string, any>;
         checks.push({
           status: "healthy",
           name: "OpenWeatherMap",
@@ -390,7 +390,7 @@ router.get("/system/health", async (_req, res) => {
       const r = await fetch("https://cadataapi.state.gov/api/TravelAdvisories", { signal: AbortSignal.timeout(10000) });
       const latencyMs = Date.now() - startMs;
       if (r.ok) {
-        const advisories = await r.json();
+        const advisories = await r.json() as any[];
         checks.push({
           status: "healthy",
           name: "State Dept Travel Advisories",
@@ -554,7 +554,7 @@ router.post("/config/test-ai", async (req, res) => {
       }),
       signal: AbortSignal.timeout(15000),
     });
-    const data = await response.json();
+    const data = await response.json() as Record<string, any>;
     if (response.ok) {
       const content = data.choices?.[0]?.message?.content ?? JSON.stringify(data).slice(0, 200);
       res.json({ success: true, message: `Model responded: ${content}` });
@@ -579,7 +579,7 @@ router.post("/config/test-newsapi", async (req, res) => {
       `https://newsapi.org/v2/top-headlines?country=us&pageSize=1&apiKey=${key}`,
       { signal: AbortSignal.timeout(10000) },
     );
-    const data = await response.json();
+    const data = await response.json() as Record<string, any>;
     if (response.ok && data.status === "ok") {
       res.json({ success: true, message: `Connected. ${data.totalResults} articles available.` });
     } else {
@@ -603,7 +603,7 @@ router.post("/config/test-weather", async (req, res) => {
       `https://api.openweathermap.org/data/2.5/weather?q=London&appid=${key}`,
       { signal: AbortSignal.timeout(10000) },
     );
-    const data = await response.json();
+    const data = await response.json() as Record<string, any>;
     if (response.ok) {
       res.json({ success: true, message: `Connected. Weather data retrieved successfully.` });
     } else {

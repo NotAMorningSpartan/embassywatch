@@ -168,6 +168,8 @@ embassywatch/
 │   ├── tasks/               Custom Tekton Tasks (npm-install, npm-test, npm-build, etc.)
 │   ├── triggers/            EventListener, TriggerBindings, TriggerTemplates
 │   └── README.md            Pipeline-specific docs
+├── scripts/
+│   └── setup-webhook.sh     Auto-creates/updates GitHub webhook for current cluster
 ├── package.json             Workspaces: apps/*
 ├── tsconfig.base.json       Shared TypeScript compiler options
 └── .gitignore
@@ -273,78 +275,154 @@ podman push $IMAGE_REGISTRY/embassywatch-backend:v1.0.0
 ### Step 1 — Create the Namespace
 
 ```bash
-oc new-project embassywatch-dev
+oc new-project embassywatch
 ```
 
-### Step 2 — Update Secrets
+### Step 2 — Build and Push Container Images
 
-Edit the base secrets with real values before deploying. **Do not commit real secrets to Git.** Use `oc create secret` or an external secret manager.
+Build from the repo root and push to a public registry (e.g., Quay.io). Make sure you are logged into the registry (`podman login quay.io`).
 
 ```bash
-# Database password
-oc create secret generic embassywatch-backend-secret \
-  --from-literal=DB_PASSWORD='<strong-password>' \
+IMAGE_REGISTRY=quay.io/your-org
+
+# Backend
+podman build -t $IMAGE_REGISTRY/embassywatch-backend:latest \
+  -f apps/backend/Containerfile .
+podman push $IMAGE_REGISTRY/embassywatch-backend:latest
+
+# Frontend (includes nginx proxy for /api/ to backend service)
+podman build -t $IMAGE_REGISTRY/embassywatch-frontend:latest \
+  -f apps/frontend/Containerfile .
+podman push $IMAGE_REGISTRY/embassywatch-frontend:latest
+```
+
+> **Note:** The frontend Containerfile configures nginx to listen on port 8080 (OpenShift runs containers as non-root random UIDs). The nginx.conf proxies `/api/*` requests to the `embassywatch-backend` service on port 4000, so the frontend and backend share a single Route.
+
+Ensure the image repositories are set to **Public** on Quay.io, or create an image pull secret:
+```bash
+oc create secret docker-registry quay-pull \
+  --docker-server=quay.io \
+  --docker-username=<user> \
+  --docker-password=<token> \
+  -n embassywatch
+oc secrets link default quay-pull --for=pull
+```
+
+### Step 3 — Deploy PostgreSQL
+
+The RHEL PostgreSQL image uses `POSTGRESQL_*` env vars. After the pod starts, you must manually create the database.
+
+```bash
+# Create secret, PVC, Deployment, Service
+oc create secret generic postgres-secret \
+  --from-literal=POSTGRES_USER=postgres \
+  --from-literal=POSTGRES_PASSWORD='<strong-password>' \
+  --from-literal=POSTGRES_DB=embassywatch \
+  -n embassywatch
+
+# Deploy PostgreSQL (use registry.redhat.io/rhel9/postgresql-16:latest)
+# See deploy/base/postgres/ for the full manifest, or apply directly:
+# oc apply -f deploy/base/postgres/ -n embassywatch
+
+# After the pod is Running, create the database:
+oc exec deployment/postgres -n embassywatch -- \
+  psql -U postgres -c "CREATE DATABASE embassywatch;"
+```
+
+### Step 4 — Deploy Redis
+
+```bash
+# Deploy Redis (use registry.redhat.io/rhel9/redis-7:latest)
+# Set REDIS_PASSWORD as an env var on the container
+# See deploy/base/redis/ for the full manifest
+```
+
+### Step 5 — Deploy the Backend
+
+Create the ConfigMap and Secrets, then the Deployment. Key details:
+
+- Set `REDIS_URL` to `redis://:PASSWORD@redis:6379` (password in the URL)
+- Set `NODE_ENV=development` on first deploy so TypeORM auto-creates tables
+- After tables exist, switch to `NODE_ENV=production`
+
+```bash
+# Create ConfigMap with non-sensitive vars
+oc create configmap backend-config \
+  --from-literal=NODE_ENV=development \
+  --from-literal=PORT=4000 \
+  --from-literal=DB_HOST=postgres \
+  --from-literal=DB_PORT=5432 \
+  --from-literal=DB_USERNAME=postgres \
+  --from-literal=DB_PASSWORD='<db-password>' \
+  --from-literal=DB_DATABASE=embassywatch \
+  --from-literal=REDIS_HOST=redis \
+  --from-literal=REDIS_PORT=6379 \
+  --from-literal=USE_MOCK_DATA=true \
+  --from-literal=LOG_LEVEL=info \
+  -n embassywatch
+
+# Create Secret for sensitive vars
+oc create secret generic backend-secret \
   --from-literal=JWT_SECRET='<random-256-bit-key>' \
-  --from-literal=AI_API_KEY='' \
-  --from-literal=NEWSAPI_KEY='' \
-  --from-literal=OPENWEATHER_KEY='' \
-  -n embassywatch-dev
+  --from-literal=REDIS_PASSWORD='<redis-password>' \
+  -n embassywatch
 
-oc create secret generic embassywatch-postgres-secret \
-  --from-literal=POSTGRES_PASSWORD='<same-db-password>' \
-  --from-literal=POSTGRES_DB='embassywatch' \
-  -n embassywatch-dev
+# Set REDIS_URL on the deployment (password must be in the URL)
+oc set env deployment/embassywatch-backend \
+  REDIS_URL="redis://:<redis-password>@redis:6379" \
+  -n embassywatch
 
-oc create secret generic embassywatch-redis-secret \
-  --from-literal=REDIS_PASSWORD='' \
-  -n embassywatch-dev
+# Deploy (image: quay.io/your-org/embassywatch-backend:latest, port 4000)
+# Readiness/liveness probes: GET /healthz on port 4000
 ```
 
-### Step 3 — Update Image References
-
-Edit `deploy/overlays/dev/kustomization.yaml` to point to your registry:
-
-```yaml
-images:
-  - name: embassywatch-frontend
-    newName: quay.io/your-org/embassywatch-frontend
-    newTag: v1.0.0
-  - name: embassywatch-backend
-    newName: quay.io/your-org/embassywatch-backend
-    newTag: v1.0.0
-```
-
-### Step 4 — Validate the Manifests
+### Step 6 — Seed the Database and Switch to Production
 
 ```bash
-kustomize build deploy/overlays/dev/ | oc apply --dry-run=server -f -
+# Wait for backend pod to be Running (TypeORM creates tables on startup)
+oc get pods -n embassywatch -w
+
+# Seed the database
+oc exec deployment/embassywatch-backend -n embassywatch -- \
+  node apps/backend/dist/seeds/seed.js
+
+# Switch to production mode (disables auto-sync of DB schema)
+oc set env deployment/embassywatch-backend NODE_ENV=production -n embassywatch
 ```
 
-### Step 5 — Deploy
+This creates 53 embassy locations, an admin user (`admin@embassywatch.gov` / `demo-password`), and an analyst user (`analyst@embassywatch.gov` / `demo-password`).
+
+### Step 7 — Deploy the Frontend and Create the Route
 
 ```bash
-kustomize build deploy/overlays/dev/ | oc apply -f -
+# Deploy (image: quay.io/your-org/embassywatch-frontend:latest, port 8080)
+# Readiness probe: GET / on port 8080
+
+# Create the Route (targetPort MUST be 8080, not 80)
+oc create route edge embassywatch \
+  --service=embassywatch-frontend \
+  --port=8080 \
+  --insecure-policy=Redirect \
+  -n embassywatch
 ```
 
-### Step 6 — Verify
+> **Important:** The Route `targetPort` must be `8080` since the frontend container runs nginx as non-root on port 8080. Using port 80 will result in a 503 error.
+
+### Step 8 — Verify
 
 ```bash
-# Watch pods come up
-oc get pods -w -n embassywatch-dev
+# All pods should be 1/1 Running
+oc get pods -n embassywatch
 
-# Check backend health
-oc get route embassywatch-backend -n embassywatch-dev -o jsonpath='{.spec.host}'
-curl https://<backend-route>/healthz
+# Get the application URL
+oc get route embassywatch -n embassywatch -o jsonpath='{.spec.host}'
 
-# Check frontend
-oc get route embassywatch-frontend -n embassywatch-dev -o jsonpath='{.spec.host}'
-```
+# Test backend health (from inside the cluster)
+oc exec deployment/embassywatch-backend -n embassywatch -- \
+  wget -qO- http://localhost:4000/healthz
+# Expected: {"status":"ok"}
 
-### Step 7 — Seed the Database (First Deploy Only)
-
-```bash
-BACKEND_POD=$(oc get pod -l app=embassywatch-backend -o jsonpath='{.items[0].metadata.name}' -n embassywatch-dev)
-oc exec -it $BACKEND_POD -n embassywatch-dev -- node apps/backend/dist/seeds/seed.js
+# Open the URL in your browser and log in
 ```
 
 ---
@@ -353,84 +431,86 @@ oc exec -it $BACKEND_POD -n embassywatch-dev -- node apps/backend/dist/seeds/see
 
 Tekton automates building images on every push to `main` and updating the Kustomize overlays so ArgoCD can deploy them.
 
-### Step 1 — Install Tekton on the Cluster
+### Step 1 — Install OpenShift Pipelines Operator
 
-If not already installed via the OpenShift Pipelines Operator:
+Via the OpenShift web console: **OperatorHub → search "OpenShift Pipelines" → Install**
 
+Verify it's running:
 ```bash
-# Via OperatorHub (recommended on OpenShift)
-# Navigate to: OperatorHub -> search "OpenShift Pipelines" -> Install
-
-# Or via CLI
-oc apply -f https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
-oc apply -f https://storage.googleapis.com/tekton-releases/triggers/latest/release.yaml
+oc get pods -n openshift-pipelines
 ```
 
-### Step 2 — Apply Custom Tasks
+The operator provides shared tasks (`git-clone`, `buildah`, `skopeo-copy`) in the `openshift-pipelines` namespace. The pipelines use `resolver: cluster` to reference them.
+
+### Step 2 — Apply Custom Tasks and Pipelines
 
 ```bash
-oc apply -f pipelines/tasks/ -n embassywatch-dev
+# Custom tasks (npm-install, npm-lint, npm-test, npm-build, update-manifest)
+oc apply -f pipelines/tasks/ -n embassywatch
+
+# Pipelines (build-backend, build-frontend, promote-env)
+oc apply -f pipelines/build-frontend.yaml -n embassywatch
+oc apply -f pipelines/build-backend.yaml -n embassywatch
+oc apply -f pipelines/promote-env.yaml -n embassywatch
 ```
 
-This installs 6 custom tasks: `npm-install`, `npm-test`, `npm-build`, `npm-lint`, `update-manifest`, `promote-image`.
-
-### Step 3 — Apply Pipelines
-
-```bash
-oc apply -f pipelines/build-frontend.yaml -n embassywatch-dev
-oc apply -f pipelines/build-backend.yaml -n embassywatch-dev
-oc apply -f pipelines/promote-env.yaml -n embassywatch-dev
-```
-
-### Step 4 — Create Pipeline Workspace PVC
+### Step 3 — Create Pipeline Workspace PVC
 
 ```bash
 oc apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: embassywatch-pipeline-pvc
-  namespace: embassywatch-dev
+  name: pipeline-workspace
+  namespace: embassywatch
 spec:
   accessModes: [ReadWriteOnce]
   resources:
     requests:
-      storage: 2Gi
+      storage: 5Gi
 EOF
 ```
 
-### Step 5 — Set Up GitHub Webhook Triggers
+### Step 4 — Set Up Triggers and EventListener
 
 ```bash
-# Apply triggers
-oc apply -f pipelines/triggers/ -n embassywatch-dev
+oc apply -f pipelines/triggers/ -n embassywatch
 
-# Get the EventListener route
-oc get route el-embassywatch-listener -n embassywatch-dev -o jsonpath='{.spec.host}'
+# Expose the EventListener as a route for GitHub
+oc expose svc el-embassywatch-webhook -n embassywatch
+
+# Verify
+oc get route el-embassywatch-webhook -n embassywatch
 ```
 
-Then in your GitHub repo settings:
-1. Go to **Settings > Webhooks > Add webhook**
-2. **Payload URL:** `https://<event-listener-route>`
-3. **Content type:** `application/json`
-4. **Events:** select "Just the push event"
-5. **Active:** checked
+The EventListener uses CEL interceptors to route events:
+- Pushes touching `apps/backend/` on `main` → `build-backend` pipeline
+- Pushes touching `apps/frontend/` on `main` → `build-frontend` pipeline
 
-Pushes to `apps/frontend/` on `main` trigger the frontend pipeline. Pushes to `apps/backend/` trigger the backend pipeline. CEL filters in the TriggerTemplates handle path-based routing.
+### Step 5 — Connect the GitHub Webhook
 
-### Step 6 — Test with a Manual Run
+Use the provided setup script to auto-create/update the GitHub webhook:
 
 ```bash
-# Frontend pipeline
-tkn pipeline start embassywatch-build-frontend \
-  -p git-url=https://github.com/NotAMorningSpartan/embassywatch.git \
-  -p git-revision=main \
-  -p image-registry=quay.io/your-org \
-  -w name=shared-workspace,claimName=embassywatch-pipeline-pvc \
-  -n embassywatch-dev
+./scripts/setup-webhook.sh
+```
+
+This script:
+- Auto-detects the EventListener route URL from the current cluster
+- Creates a new webhook or updates an existing one
+- Sends a test ping to verify the connection
+- Works across cluster migrations (just re-run on the new cluster)
+
+Manual setup: Go to **GitHub repo Settings → Webhooks → Add webhook**, set Payload URL to the EventListener route, content type `application/json`, and select "Just the push event".
+
+### Step 6 — Test with a Manual PipelineRun
+
+```bash
+# Backend pipeline
+oc create -f pipelines/pipelinerun-backend.yaml -n embassywatch
 
 # Watch progress
-tkn pipelinerun logs -f -n embassywatch-dev
+oc get pipelineruns -n embassywatch -w
 ```
 
 ---
@@ -439,52 +519,57 @@ tkn pipelinerun logs -f -n embassywatch-dev
 
 ArgoCD watches the `deploy/` directory in Git and automatically syncs cluster state to match.
 
-### Step 1 — Install ArgoCD
+### Step 1 — Install OpenShift GitOps Operator
 
+Via the OpenShift web console: **OperatorHub → search "OpenShift GitOps" → Install**
+
+Verify it's running:
 ```bash
-# Via OperatorHub (recommended on OpenShift)
-# Navigate to: OperatorHub -> search "OpenShift GitOps" -> Install
-
-# Verify
 oc get pods -n openshift-gitops
 ```
 
-### Step 2 — Grant ArgoCD Access to Namespaces
+### Step 2 — Grant ArgoCD Access to the Namespace
 
 ```bash
-for NS in embassywatch-dev embassywatch-staging embassywatch-prod; do
-  oc create namespace $NS --dry-run=client -o yaml | oc apply -f -
-  oc label namespace $NS argocd.argoproj.io/managed-by=openshift-gitops
-done
+# Give ArgoCD's application controller admin access to the embassywatch namespace
+oc create rolebinding argocd-admin \
+  --clusterrole=admin \
+  --serviceaccount=openshift-gitops:openshift-gitops-argocd-application-controller \
+  -n embassywatch
+
+oc create rolebinding argocd-appset \
+  --clusterrole=admin \
+  --serviceaccount=openshift-gitops:openshift-gitops-applicationset-controller \
+  -n embassywatch
 ```
 
-### Step 3 — Add the Git Repository
+### Step 3 — Create ArgoCD Applications
 
 ```bash
-argocd repo add https://github.com/NotAMorningSpartan/embassywatch.git
+# Create Applications in the openshift-gitops namespace
+# Each watches a path in the Git repo and syncs to the embassywatch namespace
+oc apply -f deploy/argocd/ -n openshift-gitops
 ```
 
-### Step 4 — Deploy the App-of-Apps
+This creates Applications with sync-wave ordering:
+- **Wave 0 — Infrastructure:** PostgreSQL + Redis (deploys first)
+- **Wave 1 — Backend:** Express API
+- **Wave 2 — Frontend:** Nginx SPA
+
+Dev and staging Applications use automated sync with prune + selfHeal. Production requires manual sync.
+
+### Step 4 — Get the ArgoCD Dashboard
 
 ```bash
-oc apply -f deploy/argocd/app-of-apps.yaml -n openshift-gitops
-```
-
-This creates a root Application that discovers and deploys the child Applications:
-- `infra-dev.yaml` — deploys `deploy/overlays/dev/` to `embassywatch-dev` (auto-sync)
-- `infra-staging.yaml` — deploys `deploy/overlays/staging/` to `embassywatch-staging` (auto-sync)
-- `infra-prod.yaml` — deploys `deploy/overlays/prod/` to `embassywatch-prod` (manual sync)
-
-Sync-wave ordering ensures infrastructure (PostgreSQL, Redis) deploys first (wave 0), then backend (wave 1), then frontend (wave 2).
-
-### Step 5 — Verify in ArgoCD UI
-
-```bash
-# Get the ArgoCD route
+# Get the ArgoCD URL
 oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{.spec.host}'
+
+# Get the admin password
+oc get secret openshift-gitops-cluster -n openshift-gitops \
+  -o jsonpath='{.data.admin\.password}' | base64 -d
 ```
 
-Open the URL. You should see the `embassywatch` app-of-apps with child applications for each environment.
+Open the URL and log in with username `admin` and the decoded password. You should see the `embassywatch-*` applications.
 
 ---
 

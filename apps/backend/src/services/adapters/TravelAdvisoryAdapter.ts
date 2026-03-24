@@ -67,7 +67,7 @@ export class TravelAdvisoryAdapter extends DataSourceAdapter {
       });
       if (!res.ok) throw new Error(`Travel advisory API returned ${res.status}`);
 
-      const advisories: TravelAdvisoryEntry[] = await res.json();
+      const advisories: TravelAdvisoryEntry[] = await res.json() as TravelAdvisoryEntry[];
       console.log(`[TravelAdvisory] Fetched ${advisories.length} advisories from State Department`);
 
       // Get embassy countries from DB for matching

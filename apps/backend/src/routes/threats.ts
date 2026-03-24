@@ -35,7 +35,7 @@ router.post(
   "/:embassyId/analyze",
   requireRole(UserRole.ADMIN),
   async (req, res) => {
-    const assessment = await assessEmbassy(req.params.embassyId);
+    const assessment = await assessEmbassy(req.params.embassyId as string);
     res.json(assessment);
   },
 );
