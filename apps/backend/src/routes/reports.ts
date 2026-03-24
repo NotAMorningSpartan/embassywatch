@@ -9,7 +9,6 @@ import { DataSource } from "../entities/DataSource.js";
 import { authenticate } from "../middleware/auth.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { generateEmbassyReport } from "../services/ReportService.js";
-import { redis } from "../config/redis.js";
 
 const router = Router();
 router.use(authenticate);
@@ -60,39 +59,8 @@ async function getReportData(embassyId: string) {
 router.get("/embassies/:id/report", async (req, res) => {
   const { id } = req.params;
 
-  // Check Redis cache
   const reportData = await getReportData(id);
-  const cacheKey = `report:${id}:${reportData.assessment?.id ?? "none"}`;
-
-  if (redis) {
-    try {
-      const cached = await redis.getBuffer(cacheKey);
-      if (cached) {
-        const safeName = reportData.embassy.name.replace(/[^a-zA-Z0-9]/g, "_");
-        const dateStr = new Date().toISOString().split("T")[0];
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename="EmbassyWatch_${safeName}_${dateStr}.pdf"`,
-        );
-        res.send(cached);
-        return;
-      }
-    } catch {
-      // Cache miss, continue
-    }
-  }
-
   const pdfBuffer = await generateEmbassyReport(reportData);
-
-  // Cache for 1 hour
-  if (redis) {
-    try {
-      await redis.set(cacheKey, pdfBuffer, "EX", 3600);
-    } catch {
-      // Cache write failure is non-critical
-    }
-  }
 
   const safeName = reportData.embassy.name.replace(/[^a-zA-Z0-9]/g, "_");
   const dateStr = new Date().toISOString().split("T")[0];

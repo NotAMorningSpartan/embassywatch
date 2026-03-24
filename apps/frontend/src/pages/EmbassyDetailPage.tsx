@@ -245,13 +245,16 @@ export default function EmbassyDetailPage() {
                   className="ew-export-dropdown__item"
                   onClick={handleExportPdf}
                 >
-                  <span className="ew-export-dropdown__check">✓</span> PDF
+                  <img className="ew-export-dropdown__icon" src="https://cdn.jsdelivr.net/gh/vscode-icons/vscode-icons@master/icons/file_type_pdf2.svg" alt="PDF" width="22" height="22" />
+                  PDF Document
                 </button>
                 <button className="ew-export-dropdown__item" disabled>
+                  <img className="ew-export-dropdown__icon" src="https://cdn.jsdelivr.net/gh/vscode-icons/vscode-icons@master/icons/file_type_word.svg" alt="Word" width="22" height="22" />
                   Word Document <span className="ew-export-dropdown__soon">Coming Soon</span>
                 </button>
                 <button className="ew-export-dropdown__item" disabled>
-                  JSON <span className="ew-export-dropdown__soon">Coming Soon</span>
+                  <img className="ew-export-dropdown__icon" src="https://cdn.jsdelivr.net/gh/vscode-icons/vscode-icons@master/icons/file_type_json.svg" alt="JSON" width="22" height="22" />
+                  JSON Export <span className="ew-export-dropdown__soon">Coming Soon</span>
                 </button>
               </div>
             )}
