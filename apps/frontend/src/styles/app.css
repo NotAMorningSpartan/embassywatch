@@ -1559,47 +1559,116 @@ body {
 /* Health grid */
 .ew-admin-health-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
 .ew-admin-health-card {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
   background: var(--ew-white);
   border: 1px solid var(--ew-gray-light);
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.ew-admin-health-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ew-admin-service-logo {
+  flex-shrink: 0;
   border-radius: 6px;
 }
 
 .ew-admin-health-card__indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 3px;
+  display: none;
 }
 
-.ew-admin-health-card__info {
+.ew-admin-health-card__name {
+  font-size: 0.85rem;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.ew-admin-health-card__badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.ew-admin-health-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.ew-admin-health-metric {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.ew-admin-health-card__info strong {
-  font-size: 0.85rem;
+.ew-admin-health-metric__label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ew-gray);
+  font-weight: 600;
 }
 
-.ew-admin-health-card__status {
-  font-size: 0.75rem;
+.ew-admin-health-metric__value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ew-ink);
+  line-height: 1.2;
+}
+
+.ew-admin-health-metric__value--text {
+  font-size: 0.78rem;
+  font-weight: 500;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.ew-admin-health-metric__unit {
+  font-size: 0.7rem;
+  font-weight: 400;
   color: var(--ew-gray);
-  text-transform: capitalize;
+  margin-left: 2px;
 }
 
 .ew-admin-health-card__msg {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--ew-gray);
+  line-height: 1.4;
+}
+
+.ew-admin-health-category {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ew-gray);
+  margin: 32px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ew-gray-light);
+}
+
+.ew-admin-health-category:first-of-type {
+  margin-top: 4px;
+}
+
+.ew-admin-health-summary {
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 /* Tables */
