@@ -115,7 +115,7 @@ export async function generateThreatChart(
               return lvl[value as number] ?? "";
             },
             font: { size: 11, weight: "bold" },
-            color: (ctx) => {
+            color: (ctx: any) => {
               const colors: Record<number, string> = {
                 1: THREAT_COLORS.LOW, 2: THREAT_COLORS.GUARDED,
                 3: THREAT_COLORS.ELEVATED, 4: THREAT_COLORS.HIGH,
