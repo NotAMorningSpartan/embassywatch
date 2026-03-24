@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
+import api from "../services/api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -89,6 +90,34 @@ export default function WatchlistPage() {
   const [showBulkRemoveModal, setShowBulkRemoveModal] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [showNotifSettings, setShowNotifSettings] = useState(false);
+  const [bulkExporting, setBulkExporting] = useState(false);
+  const [bulkExportProgress, setBulkExportProgress] = useState("");
+
+  const handleBulkExport = async () => {
+    if (!watchlist?.length) return;
+    setBulkExporting(true);
+    setBulkExportProgress(`Generating reports for ${watchlist.length} embassies...`);
+    try {
+      const response = await api.post(
+        "/api/reports/bulk",
+        { embassyIds: watchlist.map((e) => e.id) },
+        { responseType: "blob" },
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `EmbassyWatch_Reports_${new Date().toISOString().split("T")[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Bulk export failed:", err);
+    } finally {
+      setBulkExporting(false);
+      setBulkExportProgress("");
+    }
+  };
   const theme = usePreferencesStore((s) => s.theme);
   const user = useAuthStore((s) => s.user);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
@@ -310,6 +339,27 @@ export default function WatchlistPage() {
           Add embassies to your watchlist from the Embassy Directory or any
           embassy detail page.
         </p>
+        <button
+          className="ew-btn ew-btn--outline ew-export-btn"
+          onClick={handleBulkExport}
+          disabled={bulkExporting || !watchlist?.length}
+          style={{ marginTop: 8 }}
+        >
+          {bulkExporting ? (
+            <>
+              <span className="ew-spinner-sm" /> {bulkExportProgress}
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export All Reports (ZIP)
+            </>
+          )}
+        </button>
       </div>
 
       {/* Notification Settings (collapsible) */}
