@@ -1,8 +1,11 @@
-FROM node:20-alpine AS build
+FROM node:20-slim AS build
 WORKDIR /app
 
 # Install build dependencies for native modules (canvas/chartjs-node-canvas)
-RUN apk add --no-cache python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ pkg-config \
+    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libpixman-1-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/
@@ -12,17 +15,22 @@ COPY tsconfig.base.json ./
 COPY apps/backend/ apps/backend/
 RUN npm run build --workspace=@embassywatch/backend
 
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
 
-# Runtime dependencies for canvas native module
-RUN apk add --no-cache cairo pango jpeg giflib librsvg pixman
+# Runtime dependencies for canvas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libjpeg62-turbo libgif7 librsvg2-2 libpixman-1-0 \
+    python3 make g++ pkg-config \
+    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libpixman-1-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/
-RUN apk add --no-cache python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev \
-    && npm ci --workspace=@embassywatch/backend --omit=dev \
-    && apk del python3 make g++ pkgconfig pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
+RUN npm ci --workspace=@embassywatch/backend --omit=dev \
+    && apt-get purge -y python3 make g++ pkg-config \
+       libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libpixman-1-dev \
+    && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/apps/backend/dist apps/backend/dist/
 
