@@ -342,11 +342,11 @@ export default function EmbassyDetailPage() {
             />
             <a
               className="ew-detail-streetview__link"
-              href={`https://www.google.com/maps/@${embassy.latitude},${embassy.longitude},3a,75y,0h,90t/data=!3m6!1e1!3m4!1s!2e0!7i16384!8i8192`}
+              href={`https://www.google.com/maps/@${embassy.latitude},${embassy.longitude},18z/data=!1m1!1e1`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Open in Google Street View &rarr;
+              Open in Google Maps (Satellite) &rarr;
             </a>
           </div>
         </div>

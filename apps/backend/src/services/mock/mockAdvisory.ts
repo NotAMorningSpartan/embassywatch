@@ -60,7 +60,7 @@ export function generateMockAdvisories(count: number = 6): RawEventData[] {
       eventDate: new Date(Date.now() - daysAgo * 86400_000),
       severity: advisory.severity,
       category: "Travel Advisory",
-      sourceUrl: `https://travel.state.gov/advisory/${entry.country.toLowerCase().replace(/ /g, "-")}`,
+      sourceUrl: `https://travel.state.gov/content/travel/en/international-travel/International-Travel-Country-Information-Pages/${entry.country.replace(/ /g, "")}.html`,
       metadata: {
         source: "State Department",
         country: entry.country,

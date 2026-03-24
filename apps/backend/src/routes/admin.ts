@@ -231,20 +231,24 @@ router.get("/system/health", async (_req, res) => {
 router.get("/sources/detailed", async (_req, res) => {
   const sources = await sourceRepo().find({ order: { name: "ASC" } });
   const eventRepo = AppDataSource.getRepository(RawEvent);
+  const useMock = process.env.USE_MOCK_DATA === "true";
 
   const detailed = await Promise.all(
     sources.map(async (src) => {
       const eventCount = await eventRepo.count({
         where: { dataSourceId: src.id },
       });
-      return { ...src, eventCount };
+      // If mock mode is on, always show MOCK regardless of DB status
+      // If mock mode is off, use the DB status (HEALTHY/DEGRADED/DOWN)
+      const healthStatus = useMock ? "MOCK" : (src.healthStatus === "MOCK" ? "HEALTHY" : src.healthStatus);
+      return { ...src, healthStatus, eventCount };
     }),
   );
 
   res.json(detailed);
 });
 
-// POST /api/admin/sources/:id/fetch — trigger immediate fetch
+// POST /api/admin/sources/:id/fetch — trigger immediate fetch for ONE source
 router.post("/sources/:id/fetch", async (req, res) => {
   const source = await sourceRepo().findOneBy({ id: req.params.id as string });
   if (!source) {
@@ -252,8 +256,8 @@ router.post("/sources/:id/fetch", async (req, res) => {
   }
 
   const service = getAggregationService();
-  const result = await service.runAll();
-  res.json({ message: "Fetch triggered", ...result });
+  const result = await service.runOne(source.name);
+  res.json({ message: `Fetch triggered for ${source.name}`, ...result });
 });
 
 // PATCH /api/admin/users/:id — update user role/status
@@ -276,7 +280,7 @@ router.patch("/users/:id", validate(updateUserSchema), async (req, res) => {
   res.json(result);
 });
 
-// GET /api/admin/config — get current runtime config (keys masked)
+// GET /api/admin/config — get current runtime config (unmasked, admin-only)
 router.get("/config", async (_req, res) => {
   const saved = await loadRuntimeConfig();
   const config = {
@@ -290,14 +294,7 @@ router.get("/config", async (_req, res) => {
     OPENWEATHER_KEY: process.env.OPENWEATHER_KEY ?? saved.OPENWEATHER_KEY ?? "",
     USE_MOCK_DATA: process.env.USE_MOCK_DATA ?? saved.USE_MOCK_DATA ?? "true",
   };
-  // Mask sensitive keys for display
-  const masked = {
-    ...config,
-    AI_API_KEY: config.AI_API_KEY ? `${"•".repeat(8)}${config.AI_API_KEY.slice(-4)}` : "",
-    NEWSAPI_KEY: config.NEWSAPI_KEY ? `${"•".repeat(8)}${config.NEWSAPI_KEY.slice(-4)}` : "",
-    OPENWEATHER_KEY: config.OPENWEATHER_KEY ? `${"•".repeat(8)}${config.OPENWEATHER_KEY.slice(-4)}` : "",
-  };
-  res.json({ config: masked, hasKeys: {
+  res.json({ config, hasKeys: {
     ai: !!config.AI_API_KEY,
     newsapi: !!config.NEWSAPI_KEY,
     openweather: !!config.OPENWEATHER_KEY,
@@ -421,6 +418,14 @@ router.post("/config/test-weather", async (req, res) => {
   } catch (err) {
     res.json({ success: false, message: `Connection failed: ${(err as Error).message}` });
   }
+});
+
+// DELETE /api/admin/events — purge all raw events
+router.delete("/events", async (_req, res) => {
+  const eventRepo = AppDataSource.getRepository(RawEvent);
+  const count = await eventRepo.count();
+  await eventRepo.clear();
+  res.json({ message: `Purged ${count} events.`, count });
 });
 
 // GET /api/admin/activity — recent system activity

@@ -60,48 +60,78 @@ export class DataAggregationService {
       await dsRepo.save(dsEntity);
     }
 
-    // Fetch events
-    const rawEvents = await adapter.fetch();
-    if (rawEvents.length === 0) return 0;
+    const useMock = process.env.USE_MOCK_DATA === "true";
 
-    // Resolve country names to embassy IDs
-    const embassyRepo = AppDataSource.getRepository(Embassy);
-    const eventRepo = AppDataSource.getRepository(RawEvent);
-
-    const entities: RawEvent[] = [];
-    for (const ev of rawEvents) {
-      let embassyId: string | null = ev.embassyId ?? null;
-
-      if (!embassyId && ev.country) {
-        const embassy = await embassyRepo.findOne({
-          where: { country: ILike(`%${ev.country}%`) },
-        });
-        embassyId = embassy?.id ?? null;
+    try {
+      // Fetch events
+      const rawEvents = await adapter.fetch();
+      if (rawEvents.length === 0) {
+        dsEntity.lastFetchedAt = new Date();
+        dsEntity.healthStatus = useMock ? HealthStatus.MOCK : HealthStatus.HEALTHY;
+        await dsRepo.save(dsEntity);
+        return 0;
       }
 
-      const entity = eventRepo.create({
-        dataSourceId: dsEntity.id,
-        embassyId,
-        title: ev.title,
-        content: ev.content,
-        eventDate: ev.eventDate,
-        severity: ev.severity,
-        category: ev.category,
-        sourceUrl: ev.sourceUrl,
-        metadata: ev.metadata,
-      });
-      entities.push(entity);
+      // Resolve country names to embassy IDs
+      const embassyRepo = AppDataSource.getRepository(Embassy);
+      const eventRepo = AppDataSource.getRepository(RawEvent);
+
+      const entities: RawEvent[] = [];
+      for (const ev of rawEvents) {
+        let embassyId: string | null = ev.embassyId ?? null;
+
+        if (!embassyId && ev.country) {
+          const embassy = await embassyRepo.findOne({
+            where: { country: ILike(`%${ev.country}%`) },
+          });
+          embassyId = embassy?.id ?? null;
+        }
+
+        const entity = eventRepo.create({
+          dataSourceId: dsEntity.id,
+          embassyId,
+          title: ev.title,
+          content: ev.content,
+          eventDate: ev.eventDate,
+          severity: ev.severity,
+          category: ev.category,
+          sourceUrl: ev.sourceUrl,
+          metadata: ev.metadata,
+        });
+        entities.push(entity);
+      }
+
+      // Bulk insert
+      await eventRepo.save(entities);
+
+      // Update data source health & timestamp
+      dsEntity.lastFetchedAt = new Date();
+      dsEntity.healthStatus = useMock ? HealthStatus.MOCK : HealthStatus.HEALTHY;
+      await dsRepo.save(dsEntity);
+
+      return entities.length;
+    } catch (err) {
+      // Update health to DOWN on failure
+      dsEntity.healthStatus = HealthStatus.DOWN;
+      dsEntity.lastFetchedAt = new Date();
+      await dsRepo.save(dsEntity);
+      throw err;
+    }
+  }
+
+  /** Run a single adapter by data source name */
+  async runOne(sourceName: string): Promise<{ total: number; errors: string[] }> {
+    const adapter = this.adapters.find((a) => a.name === sourceName);
+    if (!adapter) {
+      return { total: 0, errors: [`No adapter found for source: ${sourceName}`] };
     }
 
-    // Bulk insert
-    await eventRepo.save(entities);
-
-    // Update data source health & timestamp
-    dsEntity.lastFetchedAt = new Date();
-    dsEntity.healthStatus = HealthStatus.HEALTHY;
-    await dsRepo.save(dsEntity);
-
-    return entities.length;
+    try {
+      const count = await this.runAdapter(adapter);
+      return { total: count, errors: [] };
+    } catch (err) {
+      return { total: 0, errors: [`${adapter.name}: ${err}`] };
+    }
   }
 
   /** Check health of all adapters */

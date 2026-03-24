@@ -57,6 +57,8 @@ function useSourcesDetailed() {
     queryKey: ["admin", "sources"],
     queryFn: () =>
       api.get<SourceDetailed[]>("/api/admin/sources/detailed").then((r) => r.data),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 
@@ -122,7 +124,7 @@ export default function AdminPage() {
       </div>
 
       {tab === "health" && <HealthSection />}
-      {tab === "sources" && <SourcesSection />}
+      {tab === "sources" && <SourcesSection onNavigateToConfig={() => setTab("config")} />}
       {tab === "users" && <UsersSection />}
       {tab === "config" && <ConfigSection />}
       {tab === "activity" && <ActivitySection />}
@@ -200,7 +202,7 @@ function HealthSection() {
 
 /* ---- Sources ---- */
 
-function SourcesSection() {
+function SourcesSection({ onNavigateToConfig }: { onNavigateToConfig: () => void }) {
   const { data: sources, isLoading } = useSourcesDetailed();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -221,11 +223,51 @@ function SourcesSection() {
       queryClient.invalidateQueries({ queryKey: ["admin", "sources"] }),
   });
 
+  const [confirmPurge, setConfirmPurge] = useState(false);
+  const purgeEvents = useMutation({
+    mutationFn: () =>
+      api.delete<{ message: string; count: number }>("/api/admin/events").then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "sources"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "activity"] });
+      setConfirmPurge(false);
+    },
+  });
+
   if (isLoading) return <p>Loading data sources...</p>;
 
   return (
     <div className="ew-admin-section">
-      <h2>Data Sources</h2>
+      <div className="ew-admin-section__header">
+        <h2>Data Sources</h2>
+        <div className="ew-admin-section__actions">
+          {confirmPurge ? (
+            <span className="ew-watchlist-confirm-tooltip">
+              Purge all events?{" "}
+              <button
+                className="ew-btn ew-btn--sm ew-btn--danger"
+                onClick={() => purgeEvents.mutate()}
+                disabled={purgeEvents.isPending}
+              >
+                {purgeEvents.isPending ? "Purging..." : "Yes, Purge"}
+              </button>
+              <button
+                className="ew-btn ew-btn--sm ew-btn--outline"
+                onClick={() => setConfirmPurge(false)}
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              className="ew-admin-btn ew-admin-btn--danger"
+              onClick={() => setConfirmPurge(true)}
+            >
+              Purge All Events
+            </button>
+          )}
+        </div>
+      </div>
       <table className="ew-admin-table">
         <thead>
           <tr>
@@ -249,18 +291,29 @@ function SourcesSection() {
                 <td>{src.name}</td>
                 <td>{src.type}</td>
                 <td>
-                  <span
-                    className="ew-admin-status-dot"
-                    style={{
-                      background:
-                        src.healthStatus === "HEALTHY"
-                          ? "#2e8540"
-                          : src.healthStatus === "DEGRADED"
-                            ? "#e8a820"
-                            : "#d83933",
+                  <button
+                    className="ew-admin-status-link"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigateToConfig();
                     }}
-                  />
-                  {src.healthStatus}
+                    title="Go to API configuration"
+                  >
+                    <span
+                      className="ew-admin-status-dot"
+                      style={{
+                        background:
+                          src.healthStatus === "HEALTHY"
+                            ? "#2e8540"
+                            : src.healthStatus === "MOCK"
+                              ? "#2e75b6"
+                              : src.healthStatus === "DEGRADED"
+                                ? "#e8a820"
+                                : "#d83933",
+                      }}
+                    />
+                    {src.healthStatus === "MOCK" ? "Mock Data" : src.healthStatus}
+                  </button>
                 </td>
                 <td>
                   {src.lastFetchedAt
@@ -484,6 +537,21 @@ function useRuntimeConfig() {
   });
 }
 
+function KeyVisibilityIcon({ visible }: { visible?: boolean }) {
+  return visible ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 function ConfigSection() {
   const { data: configData, isLoading } = useRuntimeConfig();
   const queryClient = useQueryClient();
@@ -498,17 +566,23 @@ function ConfigSection() {
     OPENWEATHER_KEY: "",
     USE_MOCK_DATA: "true",
   });
-  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string } | null>>({});
   const [testing, setTesting] = useState<Record<string, boolean>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [lastLoadedJson, setLastLoadedJson] = useState("");
 
-  // Load config from server
-  if (configData && !loaded) {
-    setConfig(configData.config);
-    setLoaded(true);
+  // Sync config from server whenever it changes
+  const configJson = configData ? JSON.stringify(configData.config) : "";
+  if (configJson && configJson !== lastLoadedJson) {
+    setConfig(configData!.config);
+    setLastLoadedJson(configJson);
   }
+
+  const toggleShowKey = (key: string) => {
+    setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -595,14 +669,24 @@ function ConfigSection() {
         </div>
         <div className="ew-admin-form-row">
           <label>API Key / Token</label>
-          <input
-            type="password"
-            value={config.AI_API_KEY}
-            onChange={(e) =>
-              setConfig({ ...config, AI_API_KEY: e.target.value })
-            }
-            placeholder="Enter API key..."
-          />
+          <div className="ew-admin-key-field">
+            <input
+              type={showKeys.ai ? "text" : "password"}
+              value={config.AI_API_KEY}
+              onChange={(e) =>
+                setConfig({ ...config, AI_API_KEY: e.target.value })
+              }
+              placeholder="Enter API key..."
+            />
+            <button
+              type="button"
+              className="ew-admin-key-toggle"
+              onClick={() => toggleShowKey("ai")}
+              title={showKeys.ai ? "Hide key" : "Show key"}
+            >
+              <KeyVisibilityIcon visible={showKeys.ai} />
+            </button>
+          </div>
         </div>
         <div className="ew-admin-form-grid">
           <div className="ew-admin-form-row">
@@ -661,14 +745,24 @@ function ConfigSection() {
       <div className="ew-card">
         <div className="ew-admin-form-row">
           <label>NewsAPI Key</label>
-          <input
-            type="password"
-            value={config.NEWSAPI_KEY}
-            onChange={(e) =>
-              setConfig({ ...config, NEWSAPI_KEY: e.target.value })
-            }
-            placeholder="Enter NewsAPI key..."
-          />
+          <div className="ew-admin-key-field">
+            <input
+              type={showKeys.newsapi ? "text" : "password"}
+              value={config.NEWSAPI_KEY}
+              onChange={(e) =>
+                setConfig({ ...config, NEWSAPI_KEY: e.target.value })
+              }
+              placeholder="Enter NewsAPI key..."
+            />
+            <button
+              type="button"
+              className="ew-admin-key-toggle"
+              onClick={() => toggleShowKey("newsapi")}
+              title={showKeys.newsapi ? "Hide key" : "Show key"}
+            >
+              <KeyVisibilityIcon visible={showKeys.newsapi} />
+            </button>
+          </div>
           <span className="ew-admin-form-hint">
             Get a free key at newsapi.org — provides news headlines for embassy countries.
           </span>
@@ -694,14 +788,24 @@ function ConfigSection() {
 
         <div className="ew-admin-form-row">
           <label>OpenWeatherMap Key</label>
-          <input
-            type="password"
-            value={config.OPENWEATHER_KEY}
-            onChange={(e) =>
-              setConfig({ ...config, OPENWEATHER_KEY: e.target.value })
-            }
-            placeholder="Enter OpenWeatherMap key..."
-          />
+          <div className="ew-admin-key-field">
+            <input
+              type={showKeys.weather ? "text" : "password"}
+              value={config.OPENWEATHER_KEY}
+              onChange={(e) =>
+                setConfig({ ...config, OPENWEATHER_KEY: e.target.value })
+              }
+              placeholder="Enter OpenWeatherMap key..."
+            />
+            <button
+              type="button"
+              className="ew-admin-key-toggle"
+              onClick={() => toggleShowKey("weather")}
+              title={showKeys.weather ? "Hide key" : "Show key"}
+            >
+              <KeyVisibilityIcon visible={showKeys.weather} />
+            </button>
+          </div>
           <span className="ew-admin-form-hint">
             Get a free key at openweathermap.org — checks for severe weather near embassies.
           </span>
