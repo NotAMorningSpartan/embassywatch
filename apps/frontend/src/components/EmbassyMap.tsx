@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
-import type { Embassy } from "../hooks/useEmbassies";
+import type { Embassy, CountryThreat } from "../hooks/useEmbassies";
+import countriesGeoJSON from "../assets/countries.geo.json";
 
 const THREAT_COLORS: Record<string, string> = {
   LOW: "#2e8540",
@@ -20,6 +21,22 @@ const THREAT_LABELS: Record<string, string> = {
   ELEVATED: "Elevated",
   HIGH: "High",
   SEVERE: "Severe",
+};
+
+const THREAT_OPACITY: Record<string, number> = {
+  LOW: 0.2,
+  GUARDED: 0.25,
+  ELEVATED: 0.3,
+  HIGH: 0.35,
+  SEVERE: 0.4,
+};
+
+const THREAT_OPACITY_DARK: Record<string, number> = {
+  LOW: 0.3,
+  GUARDED: 0.35,
+  ELEVATED: 0.4,
+  HIGH: 0.45,
+  SEVERE: 0.5,
 };
 
 export type MapStyle = "standard" | "satellite" | "high-contrast";
@@ -61,21 +78,57 @@ interface Props {
   darkMode: boolean;
   region?: string;
   mapStyle?: MapStyle;
+  threatByCountry?: CountryThreat[];
+  showMarkers?: boolean;
+  showHeatMap?: boolean;
+  onToggleMarkers?: (v: boolean) => void;
+  onToggleHeatMap?: (v: boolean) => void;
+  onCountryClick?: (countryName: string) => void;
 }
 
-export default function EmbassyMap({ embassies, darkMode, region, mapStyle = "standard" }: Props) {
+export default function EmbassyMap({
+  embassies,
+  darkMode,
+  region,
+  mapStyle = "standard",
+  threatByCountry,
+  showMarkers = true,
+  showHeatMap = false,
+  onToggleMarkers,
+  onToggleHeatMap,
+  onCountryClick,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileRef = useRef<L.TileLayer | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const [heatMapVisible, setHeatMapVisible] = useState(showHeatMap);
+  const [markersVisible, setMarkersVisible] = useState(showMarkers);
+
+  // Sync with props
+  useEffect(() => setHeatMapVisible(showHeatMap), [showHeatMap]);
+  useEffect(() => setMarkersVisible(showMarkers), [showMarkers]);
+
+  // Build threat lookup by country code
+  const threatLookup = useRef<Record<string, CountryThreat>>({});
+  useEffect(() => {
+    const lookup: Record<string, CountryThreat> = {};
+    if (threatByCountry) {
+      for (const c of threatByCountry) {
+        lookup[c.countryCode] = c;
+      }
+    }
+    threatLookup.current = lookup;
+  }, [threatByCountry]);
 
   // Initialize map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [20, 0],
-      zoom: 2,
+      center: DEFAULT_VIEW,
+      zoom: DEFAULT_ZOOM,
       minZoom: 2,
       maxZoom: 18,
       scrollWheelZoom: true,
@@ -124,6 +177,110 @@ export default function EmbassyMap({ embassies, darkMode, region, mapStyle = "st
     }
   }, [region]);
 
+  // GeoJSON choropleth layer
+  const getStyle = useCallback(
+    (feature: GeoJSON.Feature | undefined) => {
+      if (!feature) return {};
+      const code = feature.id as string;
+      const data = threatLookup.current[code];
+      if (!data) {
+        return {
+          fillColor: "transparent",
+          fillOpacity: 0,
+          color: "transparent",
+          weight: 0,
+        };
+      }
+      const opacityMap = darkMode ? THREAT_OPACITY_DARK : THREAT_OPACITY;
+      return {
+        fillColor: THREAT_COLORS[data.aggregatedThreatLevel] ?? "#71767a",
+        fillOpacity: opacityMap[data.aggregatedThreatLevel] ?? 0.2,
+        color: "#fff",
+        weight: 1,
+        opacity: 0.6,
+      };
+    },
+    [darkMode],
+  );
+
+  // Create/update GeoJSON layer
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Remove old layer
+    if (geoJsonRef.current) {
+      mapRef.current.removeLayer(geoJsonRef.current);
+      geoJsonRef.current = null;
+    }
+
+    if (!heatMapVisible || !threatByCountry?.length) return;
+
+    const geoJson = L.geoJSON(countriesGeoJSON as GeoJSON.FeatureCollection, {
+      style: getStyle,
+      onEachFeature: (feature, layer) => {
+        const code = feature.id as string;
+        const data = threatLookup.current[code];
+        if (!data) return;
+
+        const color = THREAT_COLORS[data.aggregatedThreatLevel] ?? "#71767a";
+        const label = THREAT_LABELS[data.aggregatedThreatLevel] ?? data.aggregatedThreatLevel;
+
+        // Tooltip
+        layer.bindTooltip(
+          `<div class="ew-choropleth-tooltip" style="border-left: 4px solid ${color}">
+            <strong>${data.countryName}</strong>
+            <div class="ew-choropleth-tooltip__level" style="color:${color}">${label}</div>
+            <div class="ew-choropleth-tooltip__count">${data.embassyCount} ${data.embassyCount === 1 ? "embassy" : "embassies"} monitored</div>
+          </div>`,
+          { sticky: true, className: `ew-choropleth-tooltip-wrap${darkMode ? " ew-choropleth-tooltip-wrap--dark" : ""}` },
+        );
+
+        // Hover effect
+        layer.on("mouseover", () => {
+          (layer as L.Path).setStyle({ fillOpacity: 0.6 });
+        });
+        layer.on("mouseout", () => {
+          geoJson.resetStyle(layer);
+        });
+
+        // Click to zoom + filter
+        layer.on("click", () => {
+          if (mapRef.current) {
+            mapRef.current.fitBounds((layer as L.Polygon).getBounds(), { padding: [30, 30] });
+          }
+          onCountryClick?.(data.countryName);
+        });
+      },
+    });
+
+    // Add below markers
+    geoJson.addTo(mapRef.current);
+    if (clusterRef.current) {
+      clusterRef.current.bringToFront();
+    }
+    geoJsonRef.current = geoJson;
+  }, [heatMapVisible, threatByCountry, darkMode, getStyle, onCountryClick]);
+
+  // Update GeoJSON styles when dark mode changes
+  useEffect(() => {
+    if (!geoJsonRef.current) return;
+    geoJsonRef.current.setStyle((feature) => getStyle(feature as GeoJSON.Feature));
+  }, [darkMode, getStyle]);
+
+  // Toggle marker visibility
+  useEffect(() => {
+    if (!clusterRef.current || !mapRef.current) return;
+    if (markersVisible) {
+      if (!mapRef.current.hasLayer(clusterRef.current)) {
+        mapRef.current.addLayer(clusterRef.current);
+      }
+    } else {
+      if (mapRef.current.hasLayer(clusterRef.current)) {
+        mapRef.current.removeLayer(clusterRef.current);
+      }
+    }
+  }, [markersVisible]);
+
   // Update markers when embassies change
   useEffect(() => {
     if (!clusterRef.current) return;
@@ -162,5 +319,65 @@ export default function EmbassyMap({ embassies, darkMode, region, mapStyle = "st
     return () => clearTimeout(timer);
   }, [embassies]);
 
-  return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+  const handleToggleMarkers = () => {
+    const next = !markersVisible;
+    setMarkersVisible(next);
+    onToggleMarkers?.(next);
+  };
+
+  const handleToggleHeatMap = () => {
+    const next = !heatMapVisible;
+    setHeatMapVisible(next);
+    onToggleHeatMap?.(next);
+  };
+
+  return (
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
+      <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
+
+      {/* Layer Controls */}
+      <div className={`ew-map-controls${darkMode ? " ew-map-controls--dark" : ""}`}>
+        <button
+          className={`ew-map-controls__btn${markersVisible ? " ew-map-controls__btn--active" : ""}`}
+          onClick={handleToggleMarkers}
+          title="Toggle embassy markers"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="10" r="3" />
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+          </svg>
+          Markers
+        </button>
+        <button
+          className={`ew-map-controls__btn${heatMapVisible ? " ew-map-controls__btn--active" : ""}`}
+          onClick={handleToggleHeatMap}
+          title="Toggle threat heat map"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 3h18v18H3z" />
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18" opacity="0.4" />
+          </svg>
+          Heat Map
+        </button>
+      </div>
+
+      {/* Legend */}
+      {heatMapVisible && (
+        <div className={`ew-map-legend${darkMode ? " ew-map-legend--dark" : ""}`}>
+          <div className="ew-map-legend__title">Threat Level</div>
+          <div className="ew-map-legend__bar">
+            {(["LOW", "GUARDED", "ELEVATED", "HIGH", "SEVERE"] as const).map((level) => (
+              <div key={level} className="ew-map-legend__item">
+                <div
+                  className="ew-map-legend__swatch"
+                  style={{ background: THREAT_COLORS[level] }}
+                />
+                <span className="ew-map-legend__label">{THREAT_LABELS[level]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

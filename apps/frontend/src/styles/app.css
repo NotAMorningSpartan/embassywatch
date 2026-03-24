@@ -3777,3 +3777,180 @@ body {
   color: #2e75b6;
   font-weight: 500;
 }
+
+/* ===== Map Controls ===== */
+.ew-map-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.ew-map-controls--dark {
+  background: rgba(30, 36, 51, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ew-map-controls__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ew-text, #1b1b1b);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.ew-map-controls__btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.ew-map-controls__btn--active {
+  background: var(--ew-secondary, #2e75b6);
+  color: #fff;
+  border-color: var(--ew-secondary, #2e75b6);
+}
+
+.ew-map-controls__btn--active:hover {
+  opacity: 0.9;
+  background: var(--ew-secondary, #2e75b6);
+}
+
+.ew-map-controls--dark .ew-map-controls__btn {
+  color: #c8cdd3;
+}
+
+.ew-map-controls--dark .ew-map-controls__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ew-map-controls--dark .ew-map-controls__btn--active {
+  color: #fff;
+}
+
+/* ===== Map Legend ===== */
+.ew-map-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  animation: ew-fade-in 0.3s ease-out;
+}
+
+.ew-map-legend--dark {
+  background: rgba(30, 36, 51, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes ew-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ew-map-legend__title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ew-gray, #71767a);
+  margin-bottom: 6px;
+}
+
+.ew-map-legend--dark .ew-map-legend__title {
+  color: #8a8f98;
+}
+
+.ew-map-legend__bar {
+  display: flex;
+  gap: 8px;
+}
+
+.ew-map-legend__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.ew-map-legend__swatch {
+  width: 20px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+
+.ew-map-legend__label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--ew-text, #1b1b1b);
+}
+
+.ew-map-legend--dark .ew-map-legend__label {
+  color: #c8cdd3;
+}
+
+/* ===== Choropleth Tooltips ===== */
+.ew-choropleth-tooltip-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.ew-choropleth-tooltip-wrap .leaflet-tooltip-content {
+  margin: 0;
+}
+
+.ew-choropleth-tooltip {
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 4px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 0.8rem;
+  min-width: 140px;
+}
+
+.ew-choropleth-tooltip-wrap--dark .ew-choropleth-tooltip {
+  background: rgba(30, 36, 51, 0.97);
+  color: #e0e0e0;
+}
+
+.ew-choropleth-tooltip strong {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 2px;
+}
+
+.ew-choropleth-tooltip__level {
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+
+.ew-choropleth-tooltip__count {
+  color: var(--ew-gray, #71767a);
+  font-size: 0.75rem;
+}
+
+.ew-choropleth-tooltip-wrap--dark .ew-choropleth-tooltip__count {
+  color: #8a8f98;
+}

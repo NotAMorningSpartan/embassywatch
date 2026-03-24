@@ -114,11 +114,30 @@ export function useEmbassyEvents(
   });
 }
 
+export interface CountryThreat {
+  countryCode: string;
+  countryName: string;
+  aggregatedThreatLevel: string;
+  embassyCount: number;
+  highestThreatLevel: string;
+  averageThreatScore: number;
+}
+
 export function useEmbassyStats() {
   return useQuery({
     queryKey: ["embassyStats"],
     queryFn: () =>
       api.get<EmbassyStats>("/api/embassies/stats").then((r) => r.data),
+  });
+}
+
+export function useThreatByCountry() {
+  return useQuery({
+    queryKey: ["threatByCountry"],
+    queryFn: () =>
+      api
+        .get<CountryThreat[]>("/api/embassies/threat-by-country")
+        .then((r) => r.data),
   });
 }
 
