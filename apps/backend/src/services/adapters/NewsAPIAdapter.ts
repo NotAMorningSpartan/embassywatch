@@ -144,7 +144,7 @@ For countries: list ALL relevant countries from the list above, or ["NONE"] if t
 
         if (!response.ok) return;
 
-        const data = await response.json();
+        const data = await response.json() as Record<string, any>;
         const raw = data.choices?.[0]?.message?.content ?? "";
 
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -215,7 +215,7 @@ export class NewsAPIAdapter extends DataSourceAdapter {
         `https://newsapi.org/v2/everything?q=embassy+OR+diplomatic+OR+consulate&sortBy=publishedAt&pageSize=20&apiKey=${this.apiKey}`,
       );
       if (!res.ok) throw new Error(`NewsAPI returned ${res.status}`);
-      const data = await res.json();
+      const data = await res.json() as Record<string, any>;
       const rawArticles = data.articles ?? [];
 
       // First pass: normalize and try keyword matching

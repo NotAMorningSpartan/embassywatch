@@ -518,7 +518,7 @@ function ThreatChart({ assessments }: { assessments: ThreatAssessment[] }) {
           width={70}
         />
         <Tooltip
-          formatter={(_value: number, _name: string, props: { payload: { label: string; confidence: number } }) => [
+          formatter={(_value: any, _name: any, props: any) => [
             `${props.payload.label} (${props.payload.confidence}% confidence)`,
             "Threat",
           ]}

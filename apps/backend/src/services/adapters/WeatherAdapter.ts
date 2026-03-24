@@ -56,7 +56,7 @@ export class WeatherAdapter extends DataSourceAdapter {
           );
           if (!res.ok) continue;
 
-          const data = await res.json();
+          const data = await res.json() as Record<string, any>;
           const weatherId = data.weather?.[0]?.id;
           const weatherMain = data.weather?.[0]?.main ?? "Unknown";
           const weatherDesc = data.weather?.[0]?.description ?? "";
