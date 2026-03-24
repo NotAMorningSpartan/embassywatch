@@ -458,65 +458,127 @@ function UsersSection() {
   );
 }
 
-/* ---- AI Config ---- */
+/* ---- AI & Data Source Config ---- */
+
+interface RuntimeConfig {
+  AI_ENDPOINT_URL: string;
+  AI_MODEL_NAME: string;
+  AI_API_KEY: string;
+  AI_TEMPERATURE: string;
+  AI_MAX_TOKENS: string;
+  AI_TIMEOUT: string;
+  NEWSAPI_KEY: string;
+  OPENWEATHER_KEY: string;
+  USE_MOCK_DATA: string;
+}
+
+function useRuntimeConfig() {
+  return useQuery({
+    queryKey: ["admin", "config"],
+    queryFn: () =>
+      api
+        .get<{ config: RuntimeConfig; hasKeys: Record<string, boolean> }>(
+          "/api/admin/config",
+        )
+        .then((r) => r.data),
+  });
+}
 
 function ConfigSection() {
-  const [config, setConfig] = useState({
-    endpointUrl: "",
-    modelName: "",
-    apiKey: "",
-    temperature: "0.7",
-    maxTokens: "2048",
-    timeout: "30",
+  const { data: configData, isLoading } = useRuntimeConfig();
+  const queryClient = useQueryClient();
+  const [config, setConfig] = useState<RuntimeConfig>({
+    AI_ENDPOINT_URL: "",
+    AI_MODEL_NAME: "",
+    AI_API_KEY: "",
+    AI_TEMPERATURE: "0.3",
+    AI_MAX_TOKENS: "2048",
+    AI_TIMEOUT: "60",
+    NEWSAPI_KEY: "",
+    OPENWEATHER_KEY: "",
+    USE_MOCK_DATA: "true",
   });
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [testing, setTesting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string } | null>>({});
+  const [testing, setTesting] = useState<Record<string, boolean>>({});
 
-  const handleTest = async () => {
-    setTesting(true);
-    setTestResult(null);
+  // Load config from server
+  if (configData && !loaded) {
+    setConfig(configData.config);
+    setLoaded(true);
+  }
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
     try {
-      if (!config.endpointUrl) {
-        setTestResult("Error: No endpoint URL configured");
-        return;
-      }
-      const res = await fetch(config.endpointUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-        },
-        body: JSON.stringify({
-          model: config.modelName,
-          messages: [{ role: "user", content: "Hello, respond with OK" }],
-          max_tokens: 10,
-          temperature: 0,
-        }),
-        signal: AbortSignal.timeout(Number(config.timeout) * 1000 || 30000),
-      });
-      const data = await res.json();
-      setTestResult(
-        res.ok
-          ? `Success: ${JSON.stringify(data).slice(0, 200)}`
-          : `Error ${res.status}: ${JSON.stringify(data).slice(0, 200)}`,
-      );
-    } catch (err) {
-      setTestResult(`Connection failed: ${(err as Error).message}`);
+      await api.put("/api/admin/config", config);
+      setSaveMsg({ type: "success", text: "Configuration saved and applied to running services." });
+      queryClient.invalidateQueries({ queryKey: ["admin", "config"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "health"] });
+      setTimeout(() => setSaveMsg(null), 5000);
+    } catch {
+      setSaveMsg({ type: "error", text: "Failed to save configuration." });
     } finally {
-      setTesting(false);
+      setSaving(false);
     }
   };
 
+  const handleTest = async (service: string) => {
+    setTesting((t) => ({ ...t, [service]: true }));
+    setTestResults((r) => ({ ...r, [service]: null }));
+    try {
+      // Send current form values so test works before saving
+      let body: Record<string, string> = {};
+      if (service === "ai") {
+        body = {
+          endpointUrl: config.AI_ENDPOINT_URL,
+          apiKey: config.AI_API_KEY,
+          modelName: config.AI_MODEL_NAME,
+        };
+      } else if (service === "newsapi") {
+        body = { apiKey: config.NEWSAPI_KEY };
+      } else if (service === "weather") {
+        body = { apiKey: config.OPENWEATHER_KEY };
+      }
+      const res = await api.post<{ success: boolean; message: string }>(
+        `/api/admin/config/test-${service}`,
+        body,
+      );
+      setTestResults((r) => ({ ...r, [service]: res.data }));
+    } catch {
+      setTestResults((r) => ({
+        ...r,
+        [service]: { success: false, message: "Request failed" },
+      }));
+    } finally {
+      setTesting((t) => ({ ...t, [service]: false }));
+    }
+  };
+
+  if (isLoading) return <p>Loading configuration...</p>;
+
   return (
     <div className="ew-admin-section">
+      {saveMsg && (
+        <div
+          className={`ew-alert ${saveMsg.type === "success" ? "ew-alert--success" : "ew-alert--warning"}`}
+          style={{ marginBottom: 16 }}
+        >
+          {saveMsg.text}
+        </div>
+      )}
+
       <h2>AI Model Configuration</h2>
       <div className="ew-card">
         <div className="ew-admin-form-row">
           <label>Inference Endpoint URL</label>
           <input
-            value={config.endpointUrl}
+            value={config.AI_ENDPOINT_URL}
             onChange={(e) =>
-              setConfig({ ...config, endpointUrl: e.target.value })
+              setConfig({ ...config, AI_ENDPOINT_URL: e.target.value })
             }
             placeholder="https://api.example.com/v1/chat/completions"
           />
@@ -524,9 +586,9 @@ function ConfigSection() {
         <div className="ew-admin-form-row">
           <label>Model Name</label>
           <input
-            value={config.modelName}
+            value={config.AI_MODEL_NAME}
             onChange={(e) =>
-              setConfig({ ...config, modelName: e.target.value })
+              setConfig({ ...config, AI_MODEL_NAME: e.target.value })
             }
             placeholder="gpt-4o-mini"
           />
@@ -535,9 +597,11 @@ function ConfigSection() {
           <label>API Key / Token</label>
           <input
             type="password"
-            value={config.apiKey}
-            onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-            placeholder="sk-..."
+            value={config.AI_API_KEY}
+            onChange={(e) =>
+              setConfig({ ...config, AI_API_KEY: e.target.value })
+            }
+            placeholder="Enter API key..."
           />
         </div>
         <div className="ew-admin-form-grid">
@@ -548,9 +612,9 @@ function ConfigSection() {
               step="0.1"
               min="0"
               max="2"
-              value={config.temperature}
+              value={config.AI_TEMPERATURE}
               onChange={(e) =>
-                setConfig({ ...config, temperature: e.target.value })
+                setConfig({ ...config, AI_TEMPERATURE: e.target.value })
               }
             />
           </div>
@@ -558,9 +622,9 @@ function ConfigSection() {
             <label>Max Tokens</label>
             <input
               type="number"
-              value={config.maxTokens}
+              value={config.AI_MAX_TOKENS}
               onChange={(e) =>
-                setConfig({ ...config, maxTokens: e.target.value })
+                setConfig({ ...config, AI_MAX_TOKENS: e.target.value })
               }
             />
           </div>
@@ -568,9 +632,9 @@ function ConfigSection() {
             <label>Timeout (seconds)</label>
             <input
               type="number"
-              value={config.timeout}
+              value={config.AI_TIMEOUT}
               onChange={(e) =>
-                setConfig({ ...config, timeout: e.target.value })
+                setConfig({ ...config, AI_TIMEOUT: e.target.value })
               }
             />
           </div>
@@ -578,18 +642,116 @@ function ConfigSection() {
         <div className="ew-admin-form-actions">
           <button
             className="ew-admin-btn"
-            onClick={handleTest}
-            disabled={testing}
+            onClick={() => handleTest("ai")}
+            disabled={testing.ai}
           >
-            {testing ? "Testing..." : "Test Connection"}
-          </button>
-          <button className="ew-admin-btn ew-admin-btn--primary">
-            Save Configuration
+            {testing.ai ? "Testing..." : "Test AI Connection"}
           </button>
         </div>
-        {testResult && (
-          <pre className="ew-admin-test-result">{testResult}</pre>
+        {testResults.ai && (
+          <pre
+            className={`ew-admin-test-result ${testResults.ai.success ? "ew-admin-test-result--success" : "ew-admin-test-result--error"}`}
+          >
+            {testResults.ai.message}
+          </pre>
         )}
+      </div>
+
+      <h2 style={{ marginTop: 24 }}>Data Source API Keys</h2>
+      <div className="ew-card">
+        <div className="ew-admin-form-row">
+          <label>NewsAPI Key</label>
+          <input
+            type="password"
+            value={config.NEWSAPI_KEY}
+            onChange={(e) =>
+              setConfig({ ...config, NEWSAPI_KEY: e.target.value })
+            }
+            placeholder="Enter NewsAPI key..."
+          />
+          <span className="ew-admin-form-hint">
+            Get a free key at newsapi.org — provides news headlines for embassy countries.
+          </span>
+        </div>
+        <div className="ew-admin-form-actions" style={{ marginTop: 8 }}>
+          <button
+            className="ew-admin-btn ew-admin-btn--sm"
+            onClick={() => handleTest("newsapi")}
+            disabled={testing.newsapi}
+          >
+            {testing.newsapi ? "Testing..." : "Test NewsAPI"}
+          </button>
+        </div>
+        {testResults.newsapi && (
+          <pre
+            className={`ew-admin-test-result ${testResults.newsapi.success ? "ew-admin-test-result--success" : "ew-admin-test-result--error"}`}
+          >
+            {testResults.newsapi.message}
+          </pre>
+        )}
+
+        <hr className="ew-admin-divider" />
+
+        <div className="ew-admin-form-row">
+          <label>OpenWeatherMap Key</label>
+          <input
+            type="password"
+            value={config.OPENWEATHER_KEY}
+            onChange={(e) =>
+              setConfig({ ...config, OPENWEATHER_KEY: e.target.value })
+            }
+            placeholder="Enter OpenWeatherMap key..."
+          />
+          <span className="ew-admin-form-hint">
+            Get a free key at openweathermap.org — checks for severe weather near embassies.
+          </span>
+        </div>
+        <div className="ew-admin-form-actions" style={{ marginTop: 8 }}>
+          <button
+            className="ew-admin-btn ew-admin-btn--sm"
+            onClick={() => handleTest("weather")}
+            disabled={testing.weather}
+          >
+            {testing.weather ? "Testing..." : "Test Weather API"}
+          </button>
+        </div>
+        {testResults.weather && (
+          <pre
+            className={`ew-admin-test-result ${testResults.weather.success ? "ew-admin-test-result--success" : "ew-admin-test-result--error"}`}
+          >
+            {testResults.weather.message}
+          </pre>
+        )}
+
+        <hr className="ew-admin-divider" />
+
+        <div className="ew-admin-form-row">
+          <label>Use Mock Data</label>
+          <select
+            value={config.USE_MOCK_DATA}
+            onChange={(e) =>
+              setConfig({ ...config, USE_MOCK_DATA: e.target.value })
+            }
+            className="ew-filter-select"
+            style={{ maxWidth: 200 }}
+          >
+            <option value="true">Yes (mock data)</option>
+            <option value="false">No (real APIs)</option>
+          </select>
+          <span className="ew-admin-form-hint">
+            When enabled, mock data generators are used instead of real API calls.
+          </span>
+        </div>
+      </div>
+
+      <div className="ew-admin-form-actions" style={{ marginTop: 16 }}>
+        <button
+          className="ew-admin-btn ew-admin-btn--primary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? "Saving..." : "Save All Configuration"}
+        </button>
       </div>
     </div>
   );
