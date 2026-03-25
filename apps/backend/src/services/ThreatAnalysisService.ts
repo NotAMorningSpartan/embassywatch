@@ -1,8 +1,10 @@
 import { MoreThan } from "typeorm";
+import { v4 as uuidv4 } from "uuid";
 import { AppDataSource } from "../config/database.js";
 import { Embassy } from "../entities/Embassy.js";
 import { RawEvent } from "../entities/RawEvent.js";
 import { ThreatAssessment } from "../entities/ThreatAssessment.js";
+import { emitFeedEvent } from "./socketServer.js";
 import { ThreatLevel, Region } from "../entities/enums.js";
 import { analyzeEmbassyThreats } from "./AIClientService.js";
 
@@ -105,9 +107,40 @@ export async function assessEmbassy(
   await assessmentRepo.save(assessment);
 
   // Update embassy current threat level
+  const previousLevel = embassy.currentThreatLevel;
   embassy.currentThreatLevel = analysis.threatLevel;
   embassy.lastAssessedAt = new Date();
   await embassyRepo.save(embassy);
+
+  // Emit real-time feed event
+  if (previousLevel !== analysis.threatLevel) {
+    emitFeedEvent({
+      id: uuidv4(),
+      type: "THREAT_CHANGE",
+      embassyId: embassy.id,
+      embassyName: embassy.name,
+      country: embassy.country,
+      region: embassy.region,
+      previousLevel,
+      newLevel: analysis.threatLevel,
+      summary: analysis.summary.split(".")[0] + ".",
+      severity: analysis.threatLevel === "SEVERE" || analysis.threatLevel === "HIGH" ? "CRITICAL" : "INFO",
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    emitFeedEvent({
+      id: uuidv4(),
+      type: "THREAT_ASSESSED",
+      embassyId: embassy.id,
+      embassyName: embassy.name,
+      country: embassy.country,
+      region: embassy.region,
+      newLevel: analysis.threatLevel,
+      summary: `Assessment confirmed: ${analysis.threatLevel}`,
+      severity: "INFO",
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   console.log(
     `[ThreatAnalysis] ${embassy.name} → ${analysis.threatLevel} (${Math.round(analysis.confidence * 100)}% confidence)`,
