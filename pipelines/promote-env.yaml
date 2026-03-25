@@ -1,4 +1,4 @@
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: promote-env
@@ -46,7 +46,7 @@ spec:
     - name: git-clone
       taskRef:
         name: git-clone
-        kind: ClusterTask
+        kind: Task
       params:
         - name: url
           value: $(params.GIT_REPO_URL)

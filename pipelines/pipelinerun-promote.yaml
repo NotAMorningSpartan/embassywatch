@@ -1,7 +1,7 @@
 # Manual PipelineRun for environment promotion.
 # Edit APP_NAME, SOURCE_ENV, TARGET_ENV before running.
 # Use: oc create -f pipelines/pipelinerun-promote.yaml
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   generateName: promote-env-
