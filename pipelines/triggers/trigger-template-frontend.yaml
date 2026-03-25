@@ -11,7 +11,7 @@ spec:
     - name: git-repo-url
       description: The git repository URL
   resourcetemplates:
-    - apiVersion: tekton.dev/v1beta1
+    - apiVersion: tekton.dev/v1
       kind: PipelineRun
       metadata:
         generateName: build-frontend-
@@ -26,8 +26,8 @@ spec:
             value: $(tt.params.git-repo-url)
           - name: GIT_REVISION
             value: $(tt.params.git-revision)
-          - name: IMAGE_TAG
-            value: "sha-$(tt.params.git-revision)"
+          - name: IMAGE
+            value: "quay.io/tknessmi-rh/embassywatch-frontend:sha-$(tt.params.git-revision)"
         workspaces:
           - name: shared-workspace
             volumeClaimTemplate:
@@ -36,6 +36,6 @@ spec:
                   - ReadWriteOnce
                 resources:
                   requests:
-                    storage: 1Gi
+                    storage: 2Gi
         serviceAccountName: pipeline
         timeout: 30m

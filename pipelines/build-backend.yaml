@@ -9,7 +9,7 @@ spec:
   description: >
     CI/CD pipeline for the EmbassyWatch backend.
     Clones source, installs deps, lints, runs tests, builds TypeScript,
-    builds container image with Buildah, pushes to registry,
+    builds and pushes container image with Buildah,
     and updates the dev overlay manifest for ArgoCD.
 
   params:
@@ -21,28 +21,14 @@ spec:
       type: string
       description: Git revision to build (branch, tag, or commit SHA)
       default: main
-    - name: IMAGE_REGISTRY
+    - name: IMAGE
       type: string
-      description: Container image registry
-      default: "image-registry.openshift-image-registry.svc:5000"
-    - name: IMAGE_NAMESPACE
-      type: string
-      description: Namespace/org for the image
-      default: embassywatch-dev
-    - name: IMAGE_NAME
-      type: string
-      default: embassywatch-backend
-    - name: IMAGE_TAG
-      type: string
-      description: Tag for the built image (typically git SHA)
-      default: latest
+      description: Full image reference including registry, namespace, name, and tag
+      default: "quay.io/tknessmi-rh/embassywatch-backend:latest"
 
   workspaces:
     - name: shared-workspace
       description: Shared workspace for all pipeline tasks
-    - name: git-credentials
-      description: Git credentials for push operations
-      optional: true
 
   tasks:
     # Stage 1: Clone
@@ -114,7 +100,7 @@ spec:
         - name: source
           workspace: shared-workspace
 
-    # Stage 6: Build container image
+    # Stage 6: Build and push container image
     - name: buildah-build
       taskRef:
         name: buildah
@@ -123,66 +109,13 @@ spec:
         - npm-build
       params:
         - name: IMAGE
-          value: $(params.IMAGE_REGISTRY)/$(params.IMAGE_NAMESPACE)/$(params.IMAGE_NAME):$(params.IMAGE_TAG)
+          value: $(params.IMAGE)
         - name: DOCKERFILE
           value: apps/backend/Containerfile
         - name: CONTEXT
-          value: apps/backend
+          value: .
         - name: TLSVERIFY
           value: "false"
       workspaces:
         - name: source
-          workspace: shared-workspace
-
-    # Stage 7: Push image to registry
-    - name: push-image
-      taskRef:
-        name: buildah
-        kind: Task
-      runAfter:
-        - buildah-build
-      params:
-        - name: IMAGE
-          value: $(params.IMAGE_REGISTRY)/$(params.IMAGE_NAMESPACE)/$(params.IMAGE_NAME):$(params.IMAGE_TAG)
-        - name: BUILDER_IMAGE
-          value: registry.access.redhat.com/ubi9/buildah:latest
-        - name: TLSVERIFY
-          value: "false"
-      workspaces:
-        - name: source
-          workspace: shared-workspace
-
-    # Stage 8: Update dev manifest for ArgoCD
-    - name: update-manifest
-      taskRef:
-        name: update-manifest
-      runAfter:
-        - push-image
-      params:
-        - name: IMAGE_NAME
-          value: $(params.IMAGE_REGISTRY)/$(params.IMAGE_NAMESPACE)/$(params.IMAGE_NAME)
-        - name: IMAGE_TAG
-          value: $(params.IMAGE_TAG)
-        - name: OVERLAY_PATH
-          value: deploy/overlays/dev
-        - name: APP_NAME
-          value: backend
-      workspaces:
-        - name: source
-          workspace: shared-workspace
-
-  finally:
-    - name: report-status
-      taskRef:
-        name: git-clone
-        kind: Task
-      params:
-        - name: url
-          value: $(params.GIT_REPO_URL)
-        - name: revision
-          value: $(params.GIT_REVISION)
-        - name: deleteExisting
-          value: "false"
-      workspaces:
-        - name: output
           workspace: shared-workspace

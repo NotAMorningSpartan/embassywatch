@@ -3,7 +3,7 @@
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
-  generateName: build-backend-manual-
+  generateName: build-backend-
   labels:
     app.kubernetes.io/part-of: embassywatch
     tekton.dev/pipeline: build-backend
@@ -15,8 +15,8 @@ spec:
       value: "https://github.com/NotAMorningSpartan/embassywatch.git"
     - name: GIT_REVISION
       value: main
-    - name: IMAGE_TAG
-      value: "manual-latest"
+    - name: IMAGE
+      value: "quay.io/tknessmi-rh/embassywatch-backend:latest"
   workspaces:
     - name: shared-workspace
       volumeClaimTemplate:
@@ -25,6 +25,6 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 1Gi
+              storage: 2Gi
   serviceAccountName: pipeline
   timeout: 30m
