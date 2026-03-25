@@ -1,8 +1,10 @@
 import { ILike } from "typeorm";
+import { v4 as uuidv4 } from "uuid";
 import { AppDataSource } from "../config/database.js";
 import { RawEvent } from "../entities/RawEvent.js";
 import { DataSource as DataSourceEntity } from "../entities/DataSource.js";
 import { Embassy } from "../entities/Embassy.js";
+import { emitFeedEvent } from "./socketServer.js";
 import { HealthStatus } from "../entities/enums.js";
 import type { DataSourceAdapter, RawEventData } from "./DataSourceAdapter.js";
 
@@ -130,6 +132,27 @@ export class DataAggregationService {
       // Bulk insert only new events
       if (entities.length > 0) {
         await eventRepo.save(entities);
+
+        // Emit feed events for each new event
+        for (const entity of entities) {
+          let embassy: Embassy | null = null;
+          if (entity.embassyId) {
+            embassy = await embassyRepo.findOneBy({ id: entity.embassyId });
+          }
+          emitFeedEvent({
+            id: uuidv4(),
+            type: "NEW_EVENT",
+            source: adapter.name,
+            sourceType: adapter.type as "NEWS" | "WEATHER" | "ADVISORY" | "GEOPOLITICAL",
+            title: entity.title,
+            severity: (entity.severity as "INFO" | "WARNING" | "CRITICAL") ?? "INFO",
+            embassyId: entity.embassyId,
+            embassyName: embassy?.name ?? null,
+            country: embassy?.country ?? (entity.metadata as Record<string, unknown>)?.country as string ?? undefined,
+            region: embassy?.region ?? undefined,
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
       console.log(`[Aggregation] ${adapter.name}: ${rawEvents.length} fetched, ${rawEvents.length - entities.length} duplicates skipped, ${entities.length} new`);
 

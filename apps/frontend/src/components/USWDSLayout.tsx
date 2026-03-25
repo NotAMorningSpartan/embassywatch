@@ -3,8 +3,11 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "reac
 import { usePreferencesStore } from "../stores/usePreferencesStore";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useAIPanelStore } from "../stores/useAIPanelStore";
+import { useFeedStore } from "../stores/useFeedStore";
 import { useLogout } from "../hooks/useAuth";
+import { useSocket } from "../hooks/useSocket";
 import AIPanel from "./AIPanel";
+import ActivityFeed, { FeedTicker } from "./ActivityFeed";
 
 const SidebarIcons = {
   dashboard: (
@@ -68,6 +71,18 @@ export default function USWDSLayout() {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
   const { isOpen: aiPanelOpen, togglePanel: toggleAIPanel, setPageContext } = useAIPanelStore();
+  const { isOpen: feedOpen, setOpen: setFeedOpen, unreadCount } = useFeedStore();
+  const { subscribe, unsubscribe } = useSocket();
+
+  // Page-specific socket subscriptions
+  const params = useParams();
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith("/embassies/") && params.id) {
+      subscribe(`feed:embassy:${params.id}`);
+      return () => unsubscribe(`feed:embassy:${params.id}`);
+    }
+  }, [location.pathname, params.id, subscribe, unsubscribe]);
 
   // Update AI panel page context based on current route
   useEffect(() => {
@@ -91,19 +106,18 @@ export default function USWDSLayout() {
   // Keyboard shortcut: "/" to toggle AI panel
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (
-        e.key === "/" &&
-        !["INPUT", "TEXTAREA", "SELECT"].includes(
-          (e.target as HTMLElement).tagName,
-        )
-      ) {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName)) return;
+      if (e.key === "/") {
         e.preventDefault();
         toggleAIPanel();
+      } else if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        setFeedOpen(!feedOpen);
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [toggleAIPanel]);
+  }, [toggleAIPanel, feedOpen, setFeedOpen]);
 
   const initials = user
     ? user.displayName
@@ -179,6 +193,27 @@ export default function USWDSLayout() {
             </ul>
           </nav>
 
+          {/* Live Feed button */}
+          <button
+            className={`ew-feed-trigger${feedOpen ? " ew-feed-trigger--active" : ""}${unreadCount > 0 ? " ew-feed-trigger--has-unread" : ""}`}
+            onClick={() => setFeedOpen(!feedOpen)}
+            title="Live Feed (press F)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+              <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+              <circle cx="12" cy="12" r="2" fill="currentColor" />
+              <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+              <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1" />
+            </svg>
+            Live Feed
+            {unreadCount > 0 && (
+              <span className="ew-feed-trigger__badge">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
+
           {/* Ask AI button */}
           <button
             className={`ew-ai-trigger${aiPanelOpen ? " ew-ai-trigger--active" : ""}`}
@@ -250,8 +285,11 @@ export default function USWDSLayout() {
         </div>
       </header>
 
+      {/* Ticker */}
+      <FeedTicker />
+
       {/* Body */}
-      <div className={`ew-layout${aiPanelOpen ? " ew-layout--ai-open" : ""}`}>
+      <div className={`ew-layout${aiPanelOpen ? " ew-layout--ai-open" : ""}${feedOpen ? " ew-layout--feed-open" : ""}`}>
         {/* Sidebar */}
         <aside
           className={`ew-sidebar ${sidebarCollapsed ? "ew-sidebar--collapsed" : ""}`}
@@ -353,7 +391,8 @@ export default function USWDSLayout() {
         </div>
       </footer>
 
-      {/* AI Panel */}
+      {/* Panels */}
+      <ActivityFeed />
       <AIPanel />
     </>
   );

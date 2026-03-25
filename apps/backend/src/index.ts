@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import http from "http";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -14,10 +15,13 @@ import threatRoutes from "./routes/threats.js";
 import reportRoutes from "./routes/reports.js";
 import aiRoutes from "./routes/ai.js";
 import { startScheduler } from "./services/scheduler.js";
+import { initSocketServer } from "./services/socketServer.js";
+import { startMockEmitter } from "./services/MockEventEmitter.js";
 
 dotenv.config();
 
 const app = express();
+const httpServer = http.createServer(app);
 const port = process.env.PORT || 4000;
 
 app.use(helmet());
@@ -44,7 +48,14 @@ AppDataSource.initialize()
   .then(() => {
     console.log("Database connected.");
     startScheduler();
-    app.listen(port, () => {
+
+    // Initialize WebSocket server
+    initSocketServer(httpServer);
+
+    // Mock emitter is started on-demand from the admin panel
+    // via POST /api/admin/mock-emitter/start
+
+    httpServer.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
   })

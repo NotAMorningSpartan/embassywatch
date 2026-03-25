@@ -8,6 +8,7 @@ import { UserRole } from "../entities/enums.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { startMockEmitter, stopMockEmitter, isEmitterRunning } from "../services/MockEventEmitter.js";
 import { redis } from "../config/redis.js";
 import { RawEvent } from "../entities/RawEvent.js";
 import { getAggregationService } from "../services/scheduler.js";
@@ -520,6 +521,14 @@ router.put("/config", validate(configSchema), async (req, res) => {
   }
 
   await saveRuntimeConfig(updates);
+
+  // Toggle mock emitter based on USE_MOCK_DATA setting
+  if (updates.USE_MOCK_DATA === "true" && !isEmitterRunning()) {
+    startMockEmitter();
+  } else if (updates.USE_MOCK_DATA === "false" && isEmitterRunning()) {
+    stopMockEmitter();
+  }
+
   res.json({ message: "Configuration saved and applied." });
 });
 
