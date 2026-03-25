@@ -1,6 +1,6 @@
 # Manual PipelineRun for the backend build pipeline.
 # Use: oc create -f pipelines/pipelinerun-backend.yaml
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   generateName: build-backend-manual-
