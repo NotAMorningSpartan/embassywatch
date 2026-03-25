@@ -1,5 +1,8 @@
 # EmbassyWatch
 
+[![Frontend Image](https://quay.io/repository/tknessmi-rh/embassywatch-frontend/status "Frontend Container Image")](https://quay.io/repository/tknessmi-rh/embassywatch-frontend)
+[![Backend Image](https://quay.io/repository/tknessmi-rh/embassywatch-backend/status "Backend Container Image")](https://quay.io/repository/tknessmi-rh/embassywatch-backend)
+
 A threat-monitoring and situational-awareness platform for U.S. embassies and consulates worldwide. EmbassyWatch aggregates data from news feeds, weather services, and travel advisories, then uses an AI inference endpoint (OpenShift AI / vLLM) to generate per-embassy threat assessments with confidence scores, key factors, and recommendations. Analysts can browse an interactive world map, build personalized watchlists, track threat-level trends over time, and receive alerts when conditions change.
 
 ---
