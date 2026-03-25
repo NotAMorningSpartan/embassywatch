@@ -104,3 +104,15 @@ spec:
       workspaces:
         - name: source
           workspace: shared-workspace
+
+    # Stage 6: Restart deployment to pick up new image
+    - name: rollout-restart
+      taskRef:
+        name: rollout-restart
+      runAfter:
+        - buildah-build
+      params:
+        - name: DEPLOYMENT_NAME
+          value: embassywatch-frontend
+        - name: NAMESPACE
+          value: embassywatch
