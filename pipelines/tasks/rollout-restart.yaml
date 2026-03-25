@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: rollout-restart
+  labels:
+    app.kubernetes.io/part-of: embassywatch
+spec:
+  description: >
+    Trigger a rolling restart of a deployment after a new image is pushed.
+    The deployment uses imagePullPolicy: Always, so the restart pulls the
+    latest image from the registry.
+  params:
+    - name: DEPLOYMENT_NAME
+      type: string
+      description: Name of the deployment to restart
+    - name: NAMESPACE
+      type: string
+      description: Namespace of the deployment
+      default: embassywatch
+  steps:
+    - name: rollout
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      script: |
+        #!/bin/sh
+        set -e
+        echo "Restarting deployment $(params.DEPLOYMENT_NAME) in $(params.NAMESPACE)..."
+        oc rollout restart deployment/$(params.DEPLOYMENT_NAME) -n $(params.NAMESPACE)
+        echo "Waiting for rollout to complete..."
+        oc rollout status deployment/$(params.DEPLOYMENT_NAME) -n $(params.NAMESPACE) --timeout=120s
+        echo "Rollout completed successfully."
