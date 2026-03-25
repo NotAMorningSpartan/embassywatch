@@ -21,7 +21,7 @@ spec:
         #!/bin/sh
         set -e
         echo "Installing dependencies for $(params.APP_DIR)..."
-        npm ci --workspace=$(params.APP_DIR)
+        npm ci --workspace=$(params.APP_DIR) --ignore-scripts
         echo "Dependencies installed successfully."
       resources:
         requests:
