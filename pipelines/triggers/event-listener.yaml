@@ -13,10 +13,6 @@ spec:
         - ref:
             name: github
           params:
-            - name: secretRef
-              value:
-                secretName: github-webhook-secret
-                secretKey: secret
             - name: eventTypes
               value:
                 - push
@@ -25,10 +21,7 @@ spec:
           params:
             - name: filter
               value: >
-                body.ref == 'refs/heads/main' &&
-                body.commits.exists(c, c.added.exists(f, f.startsWith('apps/frontend/')) ||
-                                       c.modified.exists(f, f.startsWith('apps/frontend/')) ||
-                                       c.removed.exists(f, f.startsWith('apps/frontend/')))
+                body.ref == 'refs/heads/main'
       bindings:
         - ref: github-push-binding
       template:
@@ -40,10 +33,6 @@ spec:
         - ref:
             name: github
           params:
-            - name: secretRef
-              value:
-                secretName: github-webhook-secret
-                secretKey: secret
             - name: eventTypes
               value:
                 - push
@@ -52,10 +41,7 @@ spec:
           params:
             - name: filter
               value: >
-                body.ref == 'refs/heads/main' &&
-                body.commits.exists(c, c.added.exists(f, f.startsWith('apps/backend/')) ||
-                                       c.modified.exists(f, f.startsWith('apps/backend/')) ||
-                                       c.removed.exists(f, f.startsWith('apps/backend/')))
+                body.ref == 'refs/heads/main'
       bindings:
         - ref: github-push-binding
       template:
@@ -75,17 +61,6 @@ spec:
                     memory: 128Mi
                     cpu: 100m
 ---
-# Secret for GitHub webhook validation
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-webhook-secret
-  labels:
-    app.kubernetes.io/part-of: embassywatch
-type: Opaque
-stringData:
-  secret: "REPLACE_WITH_WEBHOOK_SECRET"
----
 # Route to expose the EventListener externally
 apiVersion: route.openshift.io/v1
 kind: Route
@@ -97,6 +72,3 @@ spec:
   to:
     kind: Service
     name: el-embassywatch-webhook
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect

@@ -429,7 +429,7 @@ oc exec deployment/embassywatch-backend -n embassywatch -- \
 
 ## Setting Up Tekton CI/CD
 
-Tekton automates building images on every push to `main` and updating the Kustomize overlays so ArgoCD can deploy them.
+Tekton automates building and deploying images on every push to `main`.
 
 ### Step 1 — Install OpenShift Pipelines Operator
 
@@ -440,54 +440,101 @@ Verify it's running:
 oc get pods -n openshift-pipelines
 ```
 
-The operator provides shared tasks (`git-clone`, `buildah`, `skopeo-copy`) in the `openshift-pipelines` namespace. The pipelines use `resolver: cluster` to reference them.
+### Step 2 — Install Catalog Tasks
 
-### Step 2 — Apply Custom Tasks and Pipelines
+The pipelines require `git-clone` and `buildah` tasks from the Tekton catalog:
 
 ```bash
-# Custom tasks (npm-install, npm-lint, npm-test, npm-build, update-manifest)
-oc apply -f pipelines/tasks/ -n embassywatch
+# git-clone (clones the repo)
+oc apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/git-clone/0.9/git-clone.yaml -n embassywatch
 
-# Pipelines (build-backend, build-frontend, promote-env)
-oc apply -f pipelines/build-frontend.yaml -n embassywatch
-oc apply -f pipelines/build-backend.yaml -n embassywatch
-oc apply -f pipelines/promote-env.yaml -n embassywatch
+# buildah (builds and pushes container images)
+oc apply -f https://raw.githubusercontent.com/tektoncd/catalog/main/task/buildah/0.8/buildah.yaml -n embassywatch
 ```
 
-### Step 3 — Create Pipeline Workspace PVC
+### Step 3 — Grant Pipeline Service Account Permissions
+
+The `pipeline` service account needs the `privileged` SCC for buildah container builds and RBAC to restart deployments:
 
 ```bash
+# Grant privileged SCC for buildah (container-in-container builds)
+oc adm policy add-scc-to-user privileged -z pipeline -n embassywatch
+
+# Grant permission to restart deployments (for auto-rollout after build)
 oc apply -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
 metadata:
-  name: pipeline-workspace
+  name: pipeline-deployer
   namespace: embassywatch
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 5Gi
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pipeline-deployer
+  namespace: embassywatch
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: embassywatch
+roleRef:
+  kind: Role
+  name: pipeline-deployer
+  apiGroup: rbac.authorization.k8s.io
 EOF
 ```
 
-### Step 4 — Set Up Triggers and EventListener
+### Step 4 — Create Registry Push Secret
+
+The pipeline needs credentials to push images to Quay.io:
+
+```bash
+oc create secret docker-registry quay-auth \
+  --docker-server=quay.io \
+  --docker-username=<your-quay-username> \
+  --docker-password=<your-quay-password> \
+  -n embassywatch
+
+oc secrets link pipeline quay-auth -n embassywatch
+```
+
+### Step 5 — Apply Custom Tasks and Pipelines
+
+```bash
+# Custom tasks (npm-install, npm-lint, npm-test, npm-build, rollout-restart)
+oc apply -f pipelines/tasks/ -n embassywatch
+
+# Pipelines (build-backend, build-frontend, promote-env)
+oc apply -f pipelines/build-backend.yaml -n embassywatch
+oc apply -f pipelines/build-frontend.yaml -n embassywatch
+oc apply -f pipelines/promote-env.yaml -n embassywatch
+```
+
+Each pipeline runs: **git-clone → npm-install → npm-lint + npm-test → npm-build → buildah-build+push → rollout-restart**
+
+### Step 6 — Set Up Triggers and EventListener
 
 ```bash
 oc apply -f pipelines/triggers/ -n embassywatch
 
-# Expose the EventListener as a route for GitHub
-oc expose svc el-embassywatch-webhook -n embassywatch
+# Verify the EventListener pod is running
+oc get pods -n embassywatch -l app.kubernetes.io/managed-by=EventListener
 
-# Verify
-oc get route el-embassywatch-webhook -n embassywatch
+# Get the webhook URL
+oc get route -n embassywatch -l app.kubernetes.io/part-of=embassywatch \
+  -o jsonpath='{.items[?(@.spec.to.name=="el-embassywatch-webhook")].spec.host}'
 ```
 
-The EventListener uses CEL interceptors to route events:
-- Pushes touching `apps/backend/` on `main` → `build-backend` pipeline
-- Pushes touching `apps/frontend/` on `main` → `build-frontend` pipeline
+Both pipelines trigger on any push to `main`.
 
-### Step 5 — Connect the GitHub Webhook
+### Step 7 — Connect the GitHub Webhook
 
 Use the provided setup script to auto-create/update the GitHub webhook:
 
@@ -495,23 +542,24 @@ Use the provided setup script to auto-create/update the GitHub webhook:
 ./scripts/setup-webhook.sh
 ```
 
-This script:
-- Auto-detects the EventListener route URL from the current cluster
-- Creates a new webhook or updates an existing one
-- Sends a test ping to verify the connection
-- Works across cluster migrations (just re-run on the new cluster)
+This script auto-detects the EventListener route URL and creates/updates the GitHub webhook. Works across cluster migrations — just re-run on the new cluster.
 
-Manual setup: Go to **GitHub repo Settings → Webhooks → Add webhook**, set Payload URL to the EventListener route, content type `application/json`, and select "Just the push event".
+**Manual setup:** Go to **GitHub repo Settings → Webhooks → Add webhook**, set Payload URL to the EventListener route (use `http://`, not `https://`), content type `application/json`, and select "Just the push event".
 
-### Step 6 — Test with a Manual PipelineRun
+### Step 8 — Test with a Manual PipelineRun
 
 ```bash
 # Backend pipeline
 oc create -f pipelines/pipelinerun-backend.yaml -n embassywatch
 
+# Frontend pipeline
+oc create -f pipelines/pipelinerun-frontend.yaml -n embassywatch
+
 # Watch progress
 oc get pipelineruns -n embassywatch -w
 ```
+
+> **Note:** PipelineRuns use `volumeClaimTemplate` to create a shared PVC for all tasks. If you start a pipeline from the OpenShift console instead of these YAML files, make sure to select "VolumeClaimTemplate" (not "EmptyDir") for the workspace — EmptyDir doesn't persist between tasks.
 
 ---
 
